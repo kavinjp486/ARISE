@@ -5,25 +5,32 @@ import type { CameraFeedData } from "@/types";
 import { Camera, Circle } from "lucide-react";
 
 interface LiveCameraFeedProps {
-  data: CameraFeedData;
+  data?: CameraFeedData;
+  feed?: CameraFeedData;
 }
 
-export function LiveCameraFeed({ data }: LiveCameraFeedProps) {
+export function LiveCameraFeed({ data, feed }: LiveCameraFeedProps) {
+  const cameraData = data || feed || {
+    label: "Front Camera — Row 14",
+    resolution: "1920×1080",
+    fps: 24,
+    isLive: true,
+  };
   return (
     <SectionCard
       title="Live Camera Feed"
-      description={data.label}
+      description={cameraData.label}
       noPadding
       action={
         <div className="flex items-center gap-2">
-          {data.isLive && (
+          {cameraData.isLive && (
             <Badge variant="danger" className="gap-1.5">
               <Circle className="h-2 w-2 fill-current" />
               LIVE
             </Badge>
           )}
-          <Badge variant="secondary">{data.resolution}</Badge>
-          <Badge variant="secondary">{data.fps} FPS</Badge>
+          <Badge variant="secondary">{cameraData.resolution}</Badge>
+          <Badge variant="secondary">{cameraData.fps} FPS</Badge>
         </div>
       }
     >

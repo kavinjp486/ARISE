@@ -17,15 +17,24 @@ const statusConfig: Record<
   ready_harvest: { label: "Ready to Harvest", variant: "success", icon: Leaf },
 };
 
-export function AIPredictionPanel({ data }: AIPredictionPanelProps) {
-  const config = statusConfig[data.status];
+export function AIPredictionPanel({ data, prediction }: AIPredictionPanelProps) {
+  const item = data || prediction || {
+    primaryLabel: "Ready for Harvest",
+    confidence: 0.92,
+    status: "ready_harvest" as const,
+    recommendation: "Proceed with selective plucking on rows 14–16.",
+    detectedIssues: ["Moisture level optimal"],
+    lastScan: "2026-08-05 21:45:00",
+  };
+
+  const config = statusConfig[item.status] || statusConfig.ready_harvest;
   const StatusIcon = config.icon;
-  const confidencePercent = Math.round(data.confidence * 100);
+  const confidencePercent = Math.round(item.confidence * 100);
 
   return (
     <SectionCard
       title="AI Prediction Panel"
-      description={`Last scan: ${data.lastScan}`}
+      description={`Last scan: ${item.lastScan}`}
       action={
         <Badge variant="info" className="gap-1.5">
           <Brain className="h-3 w-3" />
@@ -36,7 +45,7 @@ export function AIPredictionPanel({ data }: AIPredictionPanelProps) {
       <div className="space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-lg font-semibold text-foreground">{data.primaryLabel}</p>
+            <p className="text-lg font-semibold text-foreground">{item.primaryLabel}</p>
             <Badge variant={config.variant} className="mt-2 gap-1.5">
               <StatusIcon className="h-3 w-3" />
               {config.label}
@@ -68,11 +77,11 @@ export function AIPredictionPanel({ data }: AIPredictionPanelProps) {
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Recommendation
           </p>
-          <p className="mt-1 text-sm text-foreground">{data.recommendation}</p>
+          <p className="mt-1 text-sm text-foreground">{item.recommendation}</p>
         </div>
 
         <ul className="space-y-1.5">
-          {data.detectedIssues.map((issue) => (
+          {item.detectedIssues.map((issue) => (
             <li key={issue} className="flex items-center gap-2 text-xs text-muted-foreground">
               <span className="h-1 w-1 rounded-full bg-accent" />
               {issue}
