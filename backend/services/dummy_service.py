@@ -1,103 +1,76 @@
-import time
-from datetime import datetime, timezone
-from typing import Dict, Any, List
-from backend.models.schemas import (
-    StatusResponse,
-    ControlResponse,
-    PredictResponse,
-    LogEntry,
-    LogsResponse,
-)
+from datetime import datetime
+import random
+from backend.models.schemas import PredictionData, ActivityLogEntry, LogsResponse
 
 class DummyService:
     @staticmethod
-    def get_dummy_status() -> StatusResponse:
-        return StatusResponse(
-            status="healthy",
-            device_connected=True,
-            mode="active_monitoring",
-            battery_level=87.5,
-            uptime_seconds=int(time.monotonic()),
-            details={
-                "cpu_utilization_percent": 12.4,
-                "memory_free_mb": 1420.5,
-                "sensor_rssi_dbm": -65,
-                "environment_temp_c": 24.8
-            }
-        )
-
-    @staticmethod
-    def execute_dummy_control(command: str, params: Dict[str, Any]) -> ControlResponse:
-        # A simple response message based on the command
-        valid_commands = ["start", "stop", "calibrate", "reset"]
-        normalized_command = command.lower().strip()
+    def get_prediction() -> PredictionData:
+        """Returns realistic AI vision predictions for tea leaf disease & harvest readiness."""
+        statuses = ["ready_harvest", "healthy", "disease"]
+        chosen_status = random.choice(["ready_harvest", "ready_harvest", "healthy"]) # Bias towards ready harvest for demo
         
-        if normalized_command in valid_commands:
-            status = "success"
-            message = f"Command '{normalized_command}' received and acknowledged."
-            payload = {"processed_at": datetime.now(timezone.utc).isoformat(), "parameters_applied": params}
+        if chosen_status == "ready_harvest":
+            return PredictionData(
+                primaryLabel="Ready for Harvest",
+                confidence=0.94,
+                status="ready_harvest",
+                recommendation="Proceed with selective plucking on rows 14–16.",
+                detectedIssues=["Moisture level optimal", "Apical flush density peak (94%)"],
+                lastScan=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
+        elif chosen_status == "disease":
+            return PredictionData(
+                primaryLabel="Blister Blight Detected",
+                confidence=0.88,
+                status="disease",
+                recommendation="Apply targeted bio-fungicide treatment on sector C.",
+                detectedIssues=["Fungal lesion on upper canopy (4%)", "High local humidity alert"],
+                lastScan=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
         else:
-            status = "failed"
-            message = f"Unknown command '{command}'. Valid commands are: {', '.join(valid_commands)}"
-            payload = {}
-
-        return ControlResponse(
-            status=status,
-            message=message,
-            executed_command=command,
-            payload=payload
-        )
+            return PredictionData(
+                primaryLabel="Healthy Vegetative Growth",
+                confidence=0.97,
+                status="healthy",
+                recommendation="Continue automated cable monitoring route.",
+                detectedIssues=["No leaf pathology detected"],
+                lastScan=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
 
     @staticmethod
-    def get_dummy_prediction(features: List[float]) -> PredictResponse:
-        # Generate a dummy prediction based on features.
-        # Since ML is not integrated yet, we do a simple mock classification
-        # for testing robustness (e.g. sum of features dictates classes)
-        total_sum = sum(features)
-        
-        if total_sum > 10.0:
-            prediction = "anomaly_detected"
-            confidence = 0.92
-        else:
-            prediction = "normal"
-            confidence = 0.98
-
-        return PredictResponse(
-            prediction=prediction,
-            confidence=confidence,
-            model_version="mock-v1.0.0",
-            timestamp=datetime.now(timezone.utc).isoformat()
-        )
-
-    @staticmethod
-    def get_dummy_logs() -> LogsResponse:
-        current_time = datetime.now(timezone.utc)
-        
-        # Static mock logs with dynamically updated timestamps
+    def get_logs() -> LogsResponse:
+        """Returns historical and live activity telemetry event logs."""
+        now_str = datetime.now().strftime("%H:%M:%S")
         logs = [
-            LogEntry(
-                timestamp=current_time.replace(minute=max(0, current_time.minute - 5)).isoformat(),
-                level="INFO",
-                message="ARISE Backend application started successfully."
+            ActivityLogEntry(
+                id="1",
+                timestamp=now_str,
+                message="Autonomous harvest cycle active on Sector B cable line.",
+                level="success"
             ),
-            LogEntry(
-                timestamp=current_time.replace(minute=max(0, current_time.minute - 4)).isoformat(),
-                level="INFO",
-                message="Connected to virtual ESP32 sensor module on channel 0."
+            ActivityLogEntry(
+                id="2",
+                timestamp="21:44:31",
+                message="AI vision scan completed — high harvest-readiness detected.",
+                level="info"
             ),
-            LogEntry(
-                timestamp=current_time.replace(minute=max(0, current_time.minute - 2)).isoformat(),
-                level="WARNING",
-                message="Virtual ESP32 connection experienced mild latency fluctuations (50ms)."
+            ActivityLogEntry(
+                id="3",
+                timestamp="21:43:10",
+                message="ESP32 cable tension & motor temperatures within safe bounds.",
+                level="info"
             ),
-            LogEntry(
-                timestamp=current_time.isoformat(),
-                level="INFO",
-                message="System status health-check: OK."
+            ActivityLogEntry(
+                id="4",
+                timestamp="21:41:55",
+                message="Battery level at 78% — solar trickle charger active.",
+                level="success"
             ),
+            ActivityLogEntry(
+                id="5",
+                timestamp="21:40:22",
+                message="Minor cable vibration spike auto-corrected by ESP32 PID controller.",
+                level="warning"
+            )
         ]
-        
-        return LogsResponse(
-            logs=logs,
-            total_count=len(logs)
-        )
+        return LogsResponse(logs=logs)

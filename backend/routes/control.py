@@ -1,12 +1,12 @@
 from fastapi import APIRouter
 from backend.models.schemas import ControlRequest, ControlResponse
-from backend.services.dummy_service import DummyService
+from backend.services.esp32_service import ESP32Service
 
 router = APIRouter()
 
-@router.post("/control", response_model=ControlResponse, summary="Execute a command on the device/system")
+@router.post("/control", response_model=ControlResponse, summary="Execute navigation or harvesting command")
 async def execute_control(request: ControlRequest):
     """
-    Triggers actions/commands on the system and returns control confirmation dummy JSON.
+    Triggers actions (move, harvest, set_mode, emergency_stop) on ESP32 or Mock hardware.
     """
-    return DummyService.execute_dummy_control(request.command, request.params)
+    return await ESP32Service.dispatch_command(request.command, request.params)

@@ -4,9 +4,9 @@ from backend.services.dummy_service import DummyService
 
 router = APIRouter()
 
-@router.get("/logs", response_model=LogsResponse, summary="Retrieve recent backend log records")
+@router.get("/logs", response_model=LogsResponse, summary="Retrieve recent telemetry event records")
 async def get_logs():
     """
-    Returns simulated historical log entries.
+    Returns live activity telemetry log records.
     """
-    return DummyService.get_dummy_logs()
+    return DummyService.get_logs()

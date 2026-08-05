@@ -1,52 +1,55 @@
 from pydantic import BaseModel, Field
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
-# --- GET /status Schemas ---
+# --- Telemetry & Status Schemas ---
 
-class StatusResponse(BaseModel):
-    status: str = Field(..., description="Overall backend system status")
-    device_connected: bool = Field(..., description="Connection status of the external device (e.g. ESP32)")
-    mode: str = Field(..., description="Current operating mode of the system")
-    battery_level: float = Field(..., description="Battery level percentage of the connected device")
-    uptime_seconds: int = Field(..., description="System uptime in seconds")
-    details: Dict[str, Any] = Field(default_factory=dict, description="Additional environment metrics")
+class PositionSchema(BaseModel):
+    x: float = Field(..., description="Cable position X coordinate in meters")
+    y: float = Field(..., description="Cable position Y coordinate in meters")
 
+class RobotStatusData(BaseModel):
+    connection: str = Field(..., description="'connected' | 'disconnected' | 'degraded'")
+    battery: float = Field(..., description="Battery level percentage (0 - 100)")
+    position: PositionSchema = Field(..., description="Robot spatial coordinates")
+    speed: float = Field(..., description="Current velocity in m/s")
+    mode: str = Field(..., description="'manual' | 'autonomous' | 'idle'")
+    temperature: float = Field(..., description="Motor temperature in °C")
+    payload: float = Field(..., description="Harvested tea leaf weight in kg")
+    lastUpdate: str = Field(..., description="ISO or human-readable timestamp of last telemetry update")
 
-# --- POST /control Schemas ---
+# --- Control Schemas ---
 
 class ControlRequest(BaseModel):
-    command: str = Field(..., description="The command action to execute (e.g. 'start', 'stop', 'calibrate')")
-    params: Dict[str, Any] = Field(default_factory=dict, description="Optional parameters for the command")
-
+    command: str = Field(..., description="Command string: move, set_mode, harvest, emergency_stop, stop")
+    params: Dict[str, Any] = Field(default_factory=dict, description="Command parameters e.g. direction, speed, mode")
+    timestamp: Optional[int] = Field(None, description="Unix timestamp of request dispatch")
 
 class ControlResponse(BaseModel):
-    status: str = Field(..., description="Result of the command execution (e.g. 'success', 'failed')")
-    message: str = Field(..., description="Informational message about the command result")
-    executed_command: str = Field(..., description="The command that was executed")
-    payload: Dict[str, Any] = Field(default_factory=dict, description="Returned data from the command execution")
+    success: bool = Field(..., description="Whether command was accepted and dispatched")
+    message: str = Field(..., description="Human-readable result summary")
+    hardware_ack: bool = Field(False, description="True if acknowledged by physical ESP32 over Wi-Fi")
 
+# --- AI Prediction Schemas ---
 
-# --- POST /predict Schemas ---
+class PredictionData(BaseModel):
+    primaryLabel: str = Field(..., description="Primary classification e.g. 'Ready for Harvest'")
+    confidence: float = Field(..., description="Confidence score between 0.0 and 1.0")
+    status: str = Field(..., description="'ready_harvest' | 'healthy' | 'disease'")
+    recommendation: str = Field(..., description="Actionable operator advice")
+    detectedIssues: List[str] = Field(default_factory=list, description="Array of detected plant health issues")
+    lastScan: str = Field(..., description="Timestamp of latest vision scan")
 
 class PredictRequest(BaseModel):
-    features: List[float] = Field(..., description="List of numerical feature inputs for prediction")
+    features: Optional[List[float]] = Field(None, description="Optional feature vector input")
+    image_url: Optional[str] = Field(None, description="Optional camera image frame URL")
 
+# --- Activity Log Schemas ---
 
-class PredictResponse(BaseModel):
-    prediction: str = Field(..., description="Predicted class or regression value")
-    confidence: float = Field(..., description="Confidence score of the prediction (between 0.0 and 1.0)")
-    model_version: str = Field(..., description="Version identifier of the running ML model")
-    timestamp: str = Field(..., description="ISO 8601 timestamp of when the prediction was made")
-
-
-# --- GET /logs Schemas ---
-
-class LogEntry(BaseModel):
-    timestamp: str = Field(..., description="ISO 8601 timestamp of the log event")
-    level: str = Field(..., description="Severity level of the log (e.g. INFO, WARNING, ERROR)")
-    message: str = Field(..., description="The log message content")
-
+class ActivityLogEntry(BaseModel):
+    id: str = Field(..., description="Unique event identifier")
+    timestamp: str = Field(..., description="Event timestamp (HH:MM:SS)")
+    message: str = Field(..., description="Telemetry event description")
+    level: str = Field(..., description="'info' | 'success' | 'warning' | 'error'")
 
 class LogsResponse(BaseModel):
-    logs: List[LogEntry] = Field(..., description="List of recent logs")
-    total_count: int = Field(..., description="Total count of logs returned")
+    logs: List[ActivityLogEntry] = Field(..., description="List of system activity logs")
