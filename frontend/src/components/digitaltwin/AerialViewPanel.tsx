@@ -1,247 +1,203 @@
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Compass, Cpu, Layers, Navigation, Radio, Zap } from "lucide-react";
+import { Compass, Layers, Radio, ShieldCheck, Zap } from "lucide-react";
 import type { CellData } from "@/types";
+
+interface AerialViewPanelProps {
+  posX: number;
+  posY: number;
+  row: number;
+  col: number;
+  cells: CellData[];
+  isHarvesting: boolean;
+}
 
 const GW = 10;
 const GH = 8;
-const TOTAL_CELLS = GW * GH;
 
-// Generate snake path for smooth continuous payload traversal
-function generateSnakePath() {
-  const path: { r: number; c: number }[] = [];
-  for (let r = 0; r < GH; r++) {
-    if (r % 2 === 0) {
-      for (let c = 0; c < GW; c++) path.push({ r, c });
-    } else {
-      for (let c = GW - 1; c >= 0; c--) path.push({ r, c });
-    }
-  }
-  return path;
-}
-
-const PATH = generateSnakePath();
-
-function createInitialTeaGrid(): CellData[] {
-  const diseaseSet = new Set<number>([14, 27, 43, 58, 62]);
-  return Array.from({ length: TOTAL_CELLS }, (_, i) => ({
-    id: i,
-    row: Math.floor(i / GW),
-    col: i % GW,
-    status: diseaseSet.has(i) ? "disease" : "pending",
-  }));
-}
-
-export function AerialViewPanel() {
-  const [cells, setCells] = useState<CellData[]>(createInitialTeaGrid);
-  const [pathIndex, setPathIndex] = useState(0);
-  const [isAutoNav, setIsAutoNav] = useState(true);
-
-  // Active target cell coordinates
-  const currentPos = PATH[pathIndex];
-
-  // Calculate percentage positions for Framer Motion payload and cable tethers
-  // Map column (0..9) to 8%..92% X, and row (0..7) to 10%..90% Y
-  const posXPercent = ((currentPos.c + 0.5) / GW) * 84 + 8;
-  const posYPercent = ((currentPos.r + 0.5) / GH) * 80 + 10;
-
-  // Automated traversal loop simulating industrial scanning & harvesting
-  useEffect(() => {
-    if (!isAutoNav) return;
-
-    const interval = setInterval(() => {
-      setPathIndex((prevIndex) => {
-        const nextIdx = (prevIndex + 1) % PATH.length;
-        const targetPos = PATH[nextIdx];
-        const cellId = targetPos.r * GW + targetPos.c;
-
-        setCells((prevCells) =>
-          prevCells.map((cell) => {
-            if (cell.id === cellId && cell.status !== "disease") {
-              return { ...cell, status: "harvested" };
-            }
-            return cell;
-          })
-        );
-
-        return nextIdx;
-      });
-    }, 1800);
-
-    return () => clearInterval(interval);
-  }, [isAutoNav]);
+export function AerialViewPanel({
+  posX,
+  posY,
+  row,
+  col,
+  cells,
+  isHarvesting,
+}: AerialViewPanelProps) {
+  // Map posX (0..100) and posY (0..100) to percentage within visual bounds (12% to 88%)
+  const posXPercent = (posX / 100) * 76 + 12;
+  const posYPercent = (posY / 100) * 76 + 12;
 
   const harvestedCount = cells.filter((c) => c.status === "harvested").length;
-  const diseaseCount = cells.filter((c) => c.status === "disease").length;
-  const progressPct = Math.round((harvestedCount / TOTAL_CELLS) * 100);
+  const progressPct = Math.round((harvestedCount / 80) * 100);
 
   return (
     <div className="relative w-full h-full min-h-[460px] bg-[#04080F] border border-cyan-500/20 rounded-2xl overflow-hidden flex flex-col font-sans select-none shadow-[0_0_40px_rgba(0,0,0,0.8)]">
       {/* Top Header / Viewport HUD Title Bar */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-black/60 border-b border-white/10 backdrop-blur-md z-30">
         <div className="flex items-center gap-2.5">
-          <div className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
+          <div className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
           <span className="font-orb font-black text-xs text-cyan-400 tracking-wider">
-            VIEWPORT A — 🛰️ AERIAL DIGITAL TWIN (10×8 GRID)
+            VIEWPORT A — 🛰️ TOP VIEW (WOODEN FRAME PROTOTYPE)
           </span>
         </div>
 
         <div className="flex items-center gap-3 font-mono text-[11px]">
           <div className="flex items-center gap-1.5 text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
             <Radio className="h-3 w-3 animate-pulse" />
-            <span>COVERAGE: {progressPct}%</span>
+            <span>FIELD COVERAGE: {progressPct}%</span>
           </div>
 
-          <button
-            onClick={() => setIsAutoNav(!isAutoNav)}
-            className={`btn-press px-2.5 py-0.5 rounded font-orb text-[10px] font-bold border transition-colors ${
-              isAutoNav
-                ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/40"
-                : "bg-white/5 text-white/40 border-white/10"
-            }`}
-          >
-            {isAutoNav ? "● AUTO MESH SWEEP" : "○ MANUAL FREEZE"}
-          </button>
+          <div className="text-white/40 font-mono">
+            X:{Math.round(posX)}% Y:{Math.round(posY)}%
+          </div>
         </div>
       </div>
 
-      {/* Main Plantation Field Viewport */}
-      <div className="relative flex-1 w-full bg-[#050B14] p-4 flex flex-col justify-center items-center overflow-hidden">
-        {/* Synthetic Tactical Grid Overlay */}
+      {/* Main Viewport Container: Wooden Frame Top Perimeter */}
+      <div className="relative flex-1 w-full bg-[#050B14] p-6 flex flex-col justify-center items-center overflow-hidden">
+        {/* Background Plantation Row Lines */}
         <div
-          className="absolute inset-0 pointer-events-none opacity-20"
+          className="absolute inset-0 pointer-events-none opacity-15"
           style={{
-            backgroundImage: `radial-gradient(#00F0FF 1px, transparent 1px), linear-gradient(to right, rgba(0, 240, 255, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 240, 255, 0.05) 1px, transparent 1px)`,
-            backgroundSize: "32px 32px, 32px 32px, 32px 32px",
+            backgroundImage: `radial-gradient(#00A86B 1px, transparent 1px), linear-gradient(to right, rgba(0, 240, 255, 0.05) 1px, transparent 1px)`,
+            backgroundSize: "32px 32px, 32px 32px",
           }}
         />
 
-        {/* 4 Corner Cable Suspension Towers */}
-        <div className="absolute top-3 left-3 flex items-center gap-1.5 text-[9px] font-mono text-emerald-400 bg-emerald-950/70 border border-emerald-500/30 px-2 py-1 rounded shadow-lg z-20">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-          <span>TOWER 01 (NW)</span>
+        {/* 1. WOODEN FRAME TOP PERIMETER BEAMS (Matching Physical Prototype Image) */}
+        <div className="absolute inset-4 border-[10px] border-[#8c5a2b] rounded-xl shadow-2xl z-20 pointer-events-none flex flex-col justify-between p-1">
+          {/* Top Timber Beam Label */}
+          <div className="w-full flex justify-between px-2 text-[9px] font-mono font-black text-[#ffc88a] uppercase">
+            <span>TIMBER FRAME BEAM NW</span>
+            <span>TIMBER FRAME BEAM NE</span>
+          </div>
+
+          {/* Bottom Timber Beam Label */}
+          <div className="w-full flex justify-between px-2 text-[9px] font-mono font-black text-[#ffc88a] uppercase">
+            <span>TIMBER FRAME BEAM SW</span>
+            <span>TIMBER FRAME BEAM SE</span>
+          </div>
         </div>
 
-        <div className="absolute top-3 right-3 flex items-center gap-1.5 text-[9px] font-mono text-emerald-400 bg-emerald-950/70 border border-emerald-500/30 px-2 py-1 rounded shadow-lg z-20">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          <span>TOWER 02 (NE)</span>
+        {/* 2. TOP 4 CORNER IDLER PULLEYS (Matching Prototype Annotations) */}
+        {/* Top-Left Idler */}
+        <div className="absolute top-6 left-6 z-30 flex items-center gap-1.5 text-[9px] font-mono text-[#7cfc00] bg-black/80 border border-emerald-500/40 px-2 py-0.5 rounded shadow-lg">
+          <span className="w-3 h-3 rounded-full bg-[#1b4317] border border-[#7cfc00] flex items-center justify-center font-bold text-[7px] text-[#7cfc00]">
+            ⚙
+          </span>
+          <span>IDLER (NW)</span>
         </div>
 
-        <div className="absolute bottom-12 left-3 flex items-center gap-1.5 text-[9px] font-mono text-emerald-400 bg-emerald-950/70 border border-emerald-500/30 px-2 py-1 rounded shadow-lg z-20">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          <span>TOWER 03 (SW)</span>
+        {/* Top-Right Idler */}
+        <div className="absolute top-6 right-6 z-30 flex items-center gap-1.5 text-[9px] font-mono text-[#7cfc00] bg-black/80 border border-emerald-500/40 px-2 py-0.5 rounded shadow-lg">
+          <span>IDLER (NE)</span>
+          <span className="w-3 h-3 rounded-full bg-[#1b4317] border border-[#7cfc00] flex items-center justify-center font-bold text-[7px] text-[#7cfc00]">
+            ⚙
+          </span>
         </div>
 
-        <div className="absolute bottom-12 right-3 flex items-center gap-1.5 text-[9px] font-mono text-emerald-400 bg-emerald-950/70 border border-emerald-500/30 px-2 py-1 rounded shadow-lg z-20">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-          <span>TOWER 04 (SE)</span>
+        {/* Bottom-Left Idler */}
+        <div className="absolute bottom-6 left-6 z-30 flex items-center gap-1.5 text-[9px] font-mono text-[#7cfc00] bg-black/80 border border-emerald-500/40 px-2 py-0.5 rounded shadow-lg">
+          <span className="w-3 h-3 rounded-full bg-[#1b4317] border border-[#7cfc00] flex items-center justify-center font-bold text-[7px] text-[#7cfc00]">
+            ⚙
+          </span>
+          <span>IDLER (SW)</span>
         </div>
 
-        {/* Dynamic Quad-Cable Suspension Lines (SVG Layer) */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
-          {/* Cable to NW Tower 01 */}
+        {/* Bottom-Right Idler */}
+        <div className="absolute bottom-6 right-6 z-30 flex items-center gap-1.5 text-[9px] font-mono text-[#7cfc00] bg-black/80 border border-emerald-500/40 px-2 py-0.5 rounded shadow-lg">
+          <span>IDLER (SE)</span>
+          <span className="w-3 h-3 rounded-full bg-[#1b4317] border border-[#7cfc00] flex items-center justify-center font-bold text-[7px] text-[#7cfc00]">
+            ⚙
+          </span>
+        </div>
+
+        {/* 3. HIGH-CONTRAST GREEN CABLES (Matching Prototype Green Cable Rigging) */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none z-20">
+          {/* Top-Left Green Cable */}
           <line
-            x1="20"
-            y1="20"
+            x1="35"
+            y1="35"
             x2={`${posXPercent}%`}
             y2={`${posYPercent}%`}
-            stroke="#00F0FF"
-            strokeWidth="1.2"
-            strokeDasharray="4 4"
-            opacity="0.5"
+            stroke="#00FF66"
+            strokeWidth="2.5"
+            style={{ filter: "drop-shadow(0 0 6px #00FF66)" }}
           />
-          {/* Cable to NE Tower 02 */}
+          {/* Top-Right Green Cable */}
           <line
-            x1="98%"
-            y1="20"
+            x1="95%"
+            y1="35"
             x2={`${posXPercent}%`}
             y2={`${posYPercent}%`}
-            stroke="#00F0FF"
-            strokeWidth="1.2"
-            strokeDasharray="4 4"
-            opacity="0.5"
+            stroke="#00FF66"
+            strokeWidth="2.5"
+            style={{ filter: "drop-shadow(0 0 6px #00FF66)" }}
           />
-          {/* Cable to SW Tower 03 */}
+          {/* Bottom-Left Green Cable */}
           <line
-            x1="20"
-            y1="88%"
+            x1="35"
+            y1="93%"
             x2={`${posXPercent}%`}
             y2={`${posYPercent}%`}
-            stroke="#00F0FF"
-            strokeWidth="1.2"
-            strokeDasharray="4 4"
-            opacity="0.5"
+            stroke="#00FF66"
+            strokeWidth="2.5"
+            style={{ filter: "drop-shadow(0 0 6px #00FF66)" }}
           />
-          {/* Cable to SE Tower 04 */}
+          {/* Bottom-Right Green Cable */}
           <line
-            x1="98%"
-            y1="88%"
+            x1="95%"
+            y1="93%"
             x2={`${posXPercent}%`}
             y2={`${posYPercent}%`}
-            stroke="#00F0FF"
-            strokeWidth="1.2"
-            strokeDasharray="4 4"
-            opacity="0.5"
+            stroke="#00FF66"
+            strokeWidth="2.5"
+            style={{ filter: "drop-shadow(0 0 6px #00FF66)" }}
           />
         </svg>
 
-        {/* 10×8 Tea Plantation Grid */}
-        <div className="relative z-10 grid grid-cols-10 gap-1.5 w-full max-w-4xl p-2 bg-black/40 border border-white/5 rounded-xl backdrop-blur-sm">
+        {/* 4. 10×8 TEA PLANTATION CROP GRID UNDERNEATH */}
+        <div className="relative z-10 grid grid-cols-10 gap-1.5 w-full max-w-3xl p-3 bg-black/50 border border-white/10 rounded-xl backdrop-blur-sm">
           {cells.map((cell) => {
-            const isActiveTarget =
-              cell.row === currentPos.r && cell.col === currentPos.c;
+            const isActiveTarget = cell.row === row && cell.col === col;
 
             return (
               <div
                 key={cell.id}
-                className={`relative aspect-square rounded-md flex flex-col items-center justify-center transition-all duration-500 border ${
+                className={`relative aspect-square rounded flex flex-col items-center justify-center transition-all duration-300 border ${
                   cell.status === "harvested"
-                    ? "bg-emerald-500/15 border-emerald-500/50 text-emerald-400 shadow-[0_0_10px_rgba(0,168,107,0.2)]"
+                    ? "bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-[0_0_10px_rgba(0,168,107,0.3)]"
                     : cell.status === "disease"
-                    ? "bg-red-500/20 border-red-500/60 text-red-400 animate-pulse shadow-[0_0_12px_rgba(255,60,60,0.3)]"
+                    ? "bg-red-500/25 border-red-400 text-red-300 animate-pulse shadow-[0_0_12px_rgba(255,60,60,0.4)]"
                     : "bg-white/[0.02] border-white/10 text-white/20"
                 }`}
               >
-                {/* Active Target Glowing Reticle Frame */}
+                {/* Active Target Reticle Highlight */}
                 {isActiveTarget && (
-                  <motion.div
-                    layoutId="activeTargetRing"
-                    className="absolute -inset-1 rounded-lg border-2 border-cyan-400 bg-cyan-400/10 shadow-[0_0_20px_rgba(0,240,255,0.6)] z-20 pointer-events-none"
-                    transition={{
-                      type: "spring",
-                      stiffness: 300,
-                      damping: 25,
-                    }}
-                  >
-                    {/* Corner Reticle Accents */}
+                  <div className="absolute -inset-1 rounded border-2 border-cyan-400 bg-cyan-400/15 shadow-[0_0_20px_rgba(0,240,255,0.7)] z-20 pointer-events-none">
                     <span className="absolute -top-1 -left-1 w-2 h-2 border-t-2 border-l-2 border-cyan-300" />
                     <span className="absolute -top-1 -right-1 w-2 h-2 border-t-2 border-r-2 border-cyan-300" />
                     <span className="absolute -bottom-1 -left-1 w-2 h-2 border-b-2 border-l-2 border-cyan-300" />
                     <span className="absolute -bottom-1 -right-1 w-2 h-2 border-b-2 border-r-2 border-cyan-300" />
-                  </motion.div>
+                  </div>
                 )}
 
-                {/* Plant Canopy Icon / Status Indicator */}
-                <span className="text-xs font-mono font-bold">
+                <span className="text-[10px] font-mono font-bold">
                   {cell.status === "harvested" ? (
                     "✓"
                   ) : cell.status === "disease" ? (
                     "⚠"
                   ) : (
-                    <span className="text-[9px] opacity-40">
+                    <span className="text-[8px] opacity-30">
                       {cell.row + 1}.{cell.col + 1}
                     </span>
                   )}
                 </span>
-
-                {/* Subtle Tea Bush Canopy Pulse Ring */}
-                <div className="absolute inset-1 rounded bg-emerald-500/5 opacity-40 pointer-events-none" />
               </div>
             );
           })}
         </div>
 
-        {/* ANIMATED ROBOT PAYLOAD CARRIAGE (Framer Motion Digital Twin Node) */}
+        {/* 5. CENTER SQUARE PAYLOAD PLATFORM (Matching Prototype Square Platform) */}
         <motion.div
           className="absolute z-30 pointer-events-none -translate-x-1/2 -translate-y-1/2"
           animate={{
@@ -250,67 +206,56 @@ export function AerialViewPanel() {
           }}
           transition={{
             type: "spring",
-            stiffness: 120,
-            damping: 20,
+            stiffness: 150,
+            damping: 22,
           }}
         >
-          <div className="relative flex items-center justify-center">
-            {/* Radar Pulse Effect */}
-            <span className="absolute inline-flex h-16 w-16 animate-ping rounded-full bg-cyan-400/20 opacity-75" />
-            <span className="absolute inline-flex h-12 w-12 rounded-full bg-emerald-500/20 border border-cyan-400/40" />
+          <div className="relative flex flex-col items-center justify-center">
+            {/* Active Plucking Pulse Effect */}
+            {isHarvesting && (
+              <span className="absolute inline-flex h-16 w-16 animate-ping rounded-full bg-emerald-400/40" />
+            )}
 
-            {/* Robot Physical Box Body */}
-            <div className="relative flex h-11 w-14 items-center justify-center rounded-lg border-2 border-cyan-400 bg-[#040C18] shadow-[0_0_25px_rgba(0,240,255,0.6)]">
-              <Navigation className="h-5 w-5 text-cyan-400 transform rotate-45" />
+            {/* Square Wooden/Metallic Payload Carriage Box */}
+            <div className="relative w-14 h-14 rounded-lg bg-gradient-to-b from-[#8c5a2b] via-[#5a3a1e] to-[#2d1b0d] border-2 border-[#ffc88a] shadow-[0_0_25px_rgba(0,255,102,0.5)] flex flex-col items-center justify-center p-1">
+              {/* Cable Eyelet Attachments at Corners */}
+              <span className="absolute top-0.5 left-0.5 w-1.5 h-1.5 rounded-full bg-[#00FF66]" />
+              <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-[#00FF66]" />
+              <span className="absolute bottom-0.5 left-0.5 w-1.5 h-1.5 rounded-full bg-[#00FF66]" />
+              <span className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-[#00FF66]" />
 
-              {/* Status LED */}
-              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-400" />
-              </span>
+              <div className="font-orb text-[8px] font-black text-[#ffc88a] tracking-tighter">
+                PAYLOAD
+              </div>
+              <div className="text-[7px] font-mono text-cyan-300 font-bold">
+                R{row + 1}·C{col + 1}
+              </div>
             </div>
 
-            {/* Real-Time Telemetry Badge below Payload */}
-            <div className="absolute -bottom-7 whitespace-nowrap px-2 py-0.5 rounded bg-black/90 border border-cyan-500/40 font-mono text-[9px] text-cyan-400 font-bold tracking-tight shadow-lg">
-              PAYLOAD [ROW {currentPos.r + 1} · COL {currentPos.c + 1}]
+            {/* Position HUD Tag */}
+            <div className="absolute -bottom-6 px-2 py-0.5 rounded bg-black/90 border border-cyan-400/40 text-[9px] font-mono text-cyan-400 font-bold shadow-lg">
+              X:{Math.round(posX)}% Y:{Math.round(posY)}%
             </div>
           </div>
         </motion.div>
       </div>
 
-      {/* Bottom Status Legend & Coordinates Dock */}
+      {/* Bottom Status Legend Bar */}
       <div className="flex flex-wrap items-center justify-between px-4 py-2 bg-black/80 border-t border-white/10 text-xs font-mono text-white/50 z-30">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5">
-            <Compass className="h-3.5 w-3.5 text-cyan-400" />
-            <span>
-              Target: Row {currentPos.r + 1}, Col {currentPos.c + 1}
-            </span>
+          <div className="flex items-center gap-1.5 text-cyan-400">
+            <Compass className="h-3.5 w-3.5" />
+            <span>Target: Row {row + 1}, Col {col + 1}</span>
           </div>
-          <div className="flex items-center gap-1.5 text-emerald-400">
-            <Zap className="h-3.5 w-3.5" />
-            <span>Harvested: {harvestedCount} Zones</span>
+          <div className="flex items-center gap-1.5 text-[#00FF66] font-bold">
+            <span>4 Green Suspension Cables Locked</span>
           </div>
-          {diseaseCount > 0 && (
-            <div className="flex items-center gap-1.5 text-red-400 font-bold">
-              <span>⚠ Pathology Alerts: {diseaseCount}</span>
-            </div>
-          )}
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded bg-emerald-500 inline-block" />
-            <span className="text-[10px]">Harvested</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded bg-cyan-400 inline-block" />
-            <span className="text-[10px]">Active Node</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded bg-red-500 inline-block" />
-            <span className="text-[10px]">Disease Alert</span>
-          </div>
+        <div className="flex items-center gap-3 text-[11px]">
+          <span className="text-emerald-400 font-bold">
+            HARVESTED: {harvestedCount} ZONES
+          </span>
         </div>
       </div>
     </div>
