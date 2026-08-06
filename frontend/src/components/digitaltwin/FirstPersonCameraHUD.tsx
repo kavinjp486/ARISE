@@ -31,6 +31,11 @@ export function FirstPersonCameraHUD({
   const isDiseaseZone = currentCell?.status === "disease";
   const isHarvestedZone = currentCell?.status === "harvested";
 
+  // Forward/Backward maps directly to ZOOM (Scale), Left/Right maps to LATERAL PAN (X)
+  // Scale range: 1.0 (far back) to 1.45 (deep inside crop row)
+  const zoomScale = 1.0 + (posY / 100) * 0.45;
+  const lateralPanX = (posX - 50) * -2.4;
+
   return (
     <div className="relative w-full h-full min-h-[460px] bg-[#04080F] border border-cyan-500/20 rounded-2xl overflow-hidden flex flex-col font-sans select-none shadow-[0_0_40px_rgba(0,0,0,0.8)]">
       {/* Top Header / Viewport HUD Title Bar */}
@@ -38,7 +43,7 @@ export function FirstPersonCameraHUD({
         <div className="flex items-center gap-2.5">
           <div className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
           <span className="font-orb font-black text-xs text-cyan-400 tracking-wider">
-            VIEWPORT C — 👁️ FIRST-PERSON VIEW (STANDING AMONG TEA LEAVES)
+            VIEWPORT C — 👁️ FIRST-PERSON VIEW (FORWARD/BACKWARD PROJECTION)
           </span>
         </div>
 
@@ -50,20 +55,19 @@ export function FirstPersonCameraHUD({
 
           <div className="flex items-center gap-1.5 text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
             <Sparkles className="h-3 w-3" />
-            <span>TARGET: R{row + 1}·C{col + 1}</span>
+            <span>DEPTH ZOOM: {Math.round(zoomScale * 100)}%</span>
           </div>
         </div>
       </div>
 
       {/* Main First Person Downward Camera Viewport */}
       <div className="relative flex-1 w-full bg-[#050E0A] overflow-hidden flex items-center justify-center">
-        {/* Generated First-Person Tea Estate Background Image */}
+        {/* Photorealistic First-Person Tea Estate Background with Pure Zoom/Pan Motion */}
         <motion.div
-          className="absolute inset-0 bg-cover bg-center transition-transform duration-500"
+          className="absolute inset-0 bg-cover bg-center transition-all duration-300 ease-out"
           animate={{
-            scale: 1.12,
-            x: (posX - 50) * -1.8,
-            y: (posY - 50) * -1.8,
+            scale: zoomScale,
+            x: lateralPanX,
           }}
           style={{
             backgroundImage: `url('/tea_plantation_fpv.png')`,
@@ -85,7 +89,7 @@ export function FirstPersonCameraHUD({
           <div className="relative w-48 h-48 border-2 border-dashed border-cyan-400/40 rounded-full flex items-center justify-center shadow-[0_0_25px_rgba(0,240,255,0.25)]">
             <Crosshair className="h-10 w-10 text-cyan-400" />
             <span className="absolute -top-3 text-[9px] font-mono text-cyan-400 bg-black/80 px-2 py-0.5 rounded border border-cyan-500/30">
-              FIRST-PERSON FIELD OF VIEW
+              FIRST-PERSON FORWARD FOV
             </span>
           </div>
         </div>
@@ -170,7 +174,7 @@ export function FirstPersonCameraHUD({
           </div>
           <div>
             <div className="font-orb text-xs font-bold text-white flex items-center gap-2">
-              <span>ESTATE PERSPECTIVE:</span>
+              <span>FIRST-PERSON PERSPECTIVE:</span>
               <span className="text-emerald-400 font-mono text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/10 border border-emerald-500/30">
                 ROW {row + 1} · COL {col + 1}
               </span>
