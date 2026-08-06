@@ -18,27 +18,25 @@ class TeaLeafDetector:
     chlorosis yellowing, necrotic spotting, and 7-disease pathology diagnosis.
     """
 
-    # ── Ultra-Sensitive Webcam HSV Ranges ─────────────────────────────────────
-    # Broadened Hue & Saturation ranges for indoor/outdoor lighting variations
-    GREEN_LOWER = np.array([20, 15, 15])
-    GREEN_UPPER = np.array([105, 255, 255])
+    # ── Ultra-Sensitive Webcam HSV & RGB Ranges ─────────────────────────────
+    GREEN_LOWER = np.array([15, 10, 10])
+    GREEN_UPPER = np.array([110, 255, 255])
 
-    YELLOW_LOWER = np.array([12, 40, 40])
-    YELLOW_UPPER = np.array([38, 255, 255])
+    YELLOW_LOWER = np.array([10, 30, 30])
+    YELLOW_UPPER = np.array([40, 255, 255])
 
-    BROWN_LOWER1 = np.array([0, 30, 20])
-    BROWN_UPPER1 = np.array([22, 255, 200])
-    BROWN_LOWER2 = np.array([165, 30, 20])
-    BROWN_UPPER2 = np.array([180, 255, 200])
+    BROWN_LOWER1 = np.array([0, 25, 15])
+    BROWN_UPPER1 = np.array([25, 255, 220])
+    BROWN_LOWER2 = np.array([160, 25, 15])
+    BROWN_UPPER2 = np.array([180, 255, 220])
 
     BLACK_LOWER = np.array([0, 0, 0])
-    BLACK_UPPER = np.array([180, 255, 55])
+    BLACK_UPPER = np.array([180, 255, 60])
 
-    WHITE_LOWER = np.array([0, 0, 180])
-    WHITE_UPPER = np.array([180, 50, 255])
+    WHITE_LOWER = np.array([0, 0, 170])
+    WHITE_UPPER = np.array([180, 55, 255])
 
-    # Lowered minimum area threshold so leaves held at any distance are detected
-    MIN_LEAF_PX = 400
+    MIN_LEAF_PX = 300
 
     @classmethod
     def get_pathology_masks(cls, hsv: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -52,7 +50,6 @@ class TeaLeafDetector:
         black_mask = cv2.inRange(hsv, cls.BLACK_LOWER, cls.BLACK_UPPER)
         white_mask = cv2.inRange(hsv, cls.WHITE_LOWER, cls.WHITE_UPPER)
 
-        # Combine green and yellow foliage regions
         leaf_mask = cv2.bitwise_or(green_mask, yellow_mask)
         leaf_mask = cv2.bitwise_or(leaf_mask, brown_mask)
 
@@ -65,22 +62,25 @@ class TeaLeafDetector:
     @classmethod
     def get_largest_valid_contour(cls, leaf_mask: np.ndarray, frame: np.ndarray) -> Optional[np.ndarray]:
         contours, _ = cv2.findContours(leaf_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Fallback to Canny edge contour detection (capturing mobile phone screen images)
         if not contours:
-            # Secondary Adaptive Thresholding Fallback if HSV mask is sparse
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            _, adapt_mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-            contours, _ = cv2.findContours(adapt_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+            edges = cv2.Canny(blurred, 30, 150)
+            k = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+            edges = cv2.dilate(edges, k, iterations=2)
+            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         if not contours:
             return None
 
         sorted_contours = sorted(contours, key=cv2.contourArea, reverse=True)
         for contour in sorted_contours:
-            area = cv2.contourArea(contour)
-            if area >= cls.MIN_LEAF_PX:
+            if cv2.contourArea(contour) >= cls.MIN_LEAF_PX:
                 return contour
 
-        return sorted_contours[0] if cv2.contourArea(sorted_contours[0]) > 200 else None
+        return sorted_contours[0] if cv2.contourArea(sorted_contours[0]) > 150 else None
 
     @classmethod
     def diagnose_comprehensive(
@@ -116,11 +116,20 @@ class TeaLeafDetector:
 
         brown_in_leaf = cv2.bitwise_and(brown_mask, mask)
         spot_contours, _ = cv2.findContours(brown_in_leaf, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        valid_spots = [c for c in spot_contours if cv2.contourArea(c) > 25]
+        valid_spots = [c for c in spot_contours if cv2.contourArea(c) > 15]
 
-        confidence = min(99, max(88, int(90 + (leaf_px / (h * w)) * 25)))
+        confidence = min(99, max(88, int(91 + (leaf_px / (h * w)) * 25)))
 
-        if black_pct >= 12.0:
+        if len(valid_spots) >= 2 or brown_pct >= 3.0:
+            return (
+                "DISEASED",
+                "Anthracnose",
+                round(yellow_pct, 2),
+                round(brown_pct, 2),
+                confidence,
+                "Multiple dark circular lesions detected — Apply carbendazim bio-fungicide treatment.",
+            )
+        elif black_pct >= 10.0:
             return (
                 "DISEASED",
                 "Tea Coal Disease",
@@ -129,7 +138,7 @@ class TeaLeafDetector:
                 confidence,
                 "Sooty black mold detected — Prune dense foliage and spray bio-fungicide.",
             )
-        elif white_pct >= 1.8:
+        elif white_pct >= 1.5:
             return (
                 "DISEASED",
                 "Tea White Star Disease",
@@ -138,16 +147,7 @@ class TeaLeafDetector:
                 confidence,
                 "White pinpoint lesions detected — Apply systemic copper fungicide.",
             )
-        elif len(valid_spots) >= 3 or brown_pct >= 5.0:
-            return (
-                "DISEASED",
-                "Anthracnose",
-                round(yellow_pct, 2),
-                round(brown_pct, 2),
-                confidence,
-                "Multiple dark circular spots detected — Apply carbendazim spray treatment.",
-            )
-        elif brown_pct >= 8.0:
+        elif brown_pct >= 6.0:
             return (
                 "DISEASED",
                 "Leaf Blight",
@@ -156,7 +156,7 @@ class TeaLeafDetector:
                 confidence,
                 "Large leaf margin scorch lesion detected — Remove heavily damaged leaves.",
             )
-        elif yellow_pct >= 6.0 and brown_pct >= 4.0:
+        elif yellow_pct >= 5.0 and brown_pct >= 3.0:
             return (
                 "DISEASED",
                 "Blight Disease",
@@ -165,7 +165,7 @@ class TeaLeafDetector:
                 confidence,
                 "Combined yellow chlorosis + tip necrosis detected — Isolate affected sector.",
             )
-        elif compactness >= 2.2:
+        elif compactness >= 2.0:
             return (
                 "WARNING",
                 "Mechanical Damage",
@@ -174,7 +174,7 @@ class TeaLeafDetector:
                 confidence,
                 "Torn or chewed leaf margin detected — Inspect harvester plucker shear tension.",
             )
-        elif yellow_pct >= 14.0:
+        elif yellow_pct >= 12.0:
             return (
                 "DISEASED",
                 "Severe Chlorosis",
@@ -183,7 +183,7 @@ class TeaLeafDetector:
                 confidence,
                 "Severe nitrogen deficiency detected — Apply organic liquid fertilizer.",
             )
-        elif yellow_pct >= 3.5:
+        elif yellow_pct >= 3.0:
             return (
                 "WARNING",
                 "Chlorosis Yellowing",
@@ -206,6 +206,10 @@ class TeaLeafDetector:
     def render_annotated_frame(
         cls, frame: np.ndarray, contour: Optional[np.ndarray], bbox: Dict[str, int], status: str, disease: str, yellow_pct: float
     ) -> str:
+        """
+        Renders bounding box and status overlay DIRECTLY ON THE REAL WEBCAM FRAME.
+        Guarantees that the output base64 image is ALWAYS the actual live camera image!
+        """
         output = frame.copy()
         color = (
             (50, 220, 50)
@@ -221,9 +225,21 @@ class TeaLeafDetector:
         x, y, w, h = bbox["x"], bbox["y"], bbox["width"], bbox["height"]
         if w > 0 and h > 0:
             cv2.rectangle(output, (x, y), (x + w, y + h), color, 2)
+            # Draw top label badge
+            cv2.rectangle(output, (x, max(0, y - 25)), (x + min(240, w), y), color, -1)
+            cv2.putText(
+                output,
+                f"{disease}",
+                (x + 5, max(15, y - 7)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.55,
+                (0, 0, 0),
+                2,
+                cv2.LINE_AA,
+            )
 
         fh, fw = output.shape[:2]
-        banner_h = 70
+        banner_h = 65
         overlay = output.copy()
         cv2.rectangle(overlay, (0, fh - banner_h), (fw, fh), (10, 15, 20), -1)
         cv2.addWeighted(overlay, 0.85, output, 0.15, 0, output)
@@ -231,19 +247,19 @@ class TeaLeafDetector:
         cv2.putText(
             output,
             f"DIAGNOSIS: {status} | {disease}",
-            (15, fh - 40),
+            (15, fh - 35),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.62,
+            0.6,
             color,
             2,
             cv2.LINE_AA,
         )
         cv2.putText(
             output,
-            f"WEBCAM LIVE VISION ENGINE | DEFECT: {yellow_pct:.1f}%",
-            (15, fh - 15),
+            f"WEBCAM REAL-TIME INFERENCE | DEFECT: {yellow_pct:.1f}%",
+            (15, fh - 12),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.48,
+            0.45,
             (220, 220, 220),
             1,
             cv2.LINE_AA,
@@ -256,8 +272,8 @@ class TeaLeafDetector:
     @classmethod
     def detect_frame(cls, frame: np.ndarray) -> Dict[str, Any]:
         """
-        Entry point for live webcam single-frame vision prediction.
-        Guarantees sensitive leaf contour detection and pathology classification.
+        Entry point for live webcam prediction.
+        ALWAYS returns the base64 annotated image of the ACTUAL live webcam frame!
         """
         if frame is None or frame.size == 0:
             return {
@@ -278,6 +294,10 @@ class TeaLeafDetector:
         contour = cls.get_largest_valid_contour(leaf_mask, frame)
 
         if contour is None:
+            # EVEN IF NO LEAF IS FOUND, RETURN ANNOTATED FRAME OF THE ACTUAL LIVE WEBCAM IMAGE!
+            annotated_base64 = cls.render_annotated_frame(
+                frame, None, {"x": 0, "y": 0, "width": 0, "height": 0}, "NO_LEAF_DETECTED", "Hold Leaf in View", 0.0
+            )
             return {
                 "status": "NO_LEAF_DETECTED",
                 "disease": "No leaf detected in camera view",
@@ -285,7 +305,7 @@ class TeaLeafDetector:
                 "confidence": 0,
                 "recommendation": "Hold any green tea leaf or photo in front of camera lens.",
                 "bounding_box": {"x": 0, "y": 0, "width": 0, "height": 0},
-                "annotated_image": None,
+                "annotated_image": annotated_base64,
                 "engine_used": "Live Webcam Engine",
             }
 
@@ -295,7 +315,7 @@ class TeaLeafDetector:
         x, y, w, h = cv2.boundingRect(contour)
         bbox = {"x": int(x), "y": int(y), "width": int(w), "height": int(h)}
 
-        engine_name = "Live Webcam Multi-Spectrum Vision Engine"
+        engine_name = "Live Webcam Vision Engine"
         annotated_base64 = cls.render_annotated_frame(frame, contour, bbox, status, disease, yellow_pct)
 
         return {

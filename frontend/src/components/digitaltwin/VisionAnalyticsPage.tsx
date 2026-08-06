@@ -84,8 +84,7 @@ const DISEASE_CLASSES_REF = [
 ];
 
 export function VisionAnalyticsPage() {
-  const [isLiveStreaming, setIsLiveStreaming] = useState(true);
-  const [autoDetect, setAutoDetect] = useState(true); // Continuous auto-predict loop
+  const [autoDetect, setAutoDetect] = useState(true);
   const [loading, setLoading] = useState(false);
   const [prediction, setPrediction] = useState<PredictionResult>({
     status: "DISEASED",
@@ -106,7 +105,7 @@ export function VisionAnalyticsPage() {
     { id: "CAM-106", time: "14:08:12", status: "HEALTHY", disease: "Healthy Leaf", yellow: 1.2, conf: 98 },
   ]);
 
-  // Execute inference on current webcam frame
+  // Execute inference on current real-time webcam frame
   const inspectLiveWebcamFrame = async () => {
     setLoading(true);
     try {
@@ -126,11 +125,11 @@ export function VisionAnalyticsPage() {
     } catch (err) {
       // Demo Fallback Simulation if server offline
       const mockResult: PredictionResult = {
-        status: "WARNING",
-        disease: "Chlorosis Yellowing",
+        status: "DISEASED",
+        disease: "Anthracnose (Simulated)",
         yellow_percentage: Number((4 + Math.random() * 6).toFixed(2)),
         confidence: 94 + Math.floor(Math.random() * 5),
-        recommendation: "Early yellowing detected — Monitor moisture and schedule selective harvest.",
+        recommendation: "Multiple dark circular spots detected — Apply carbendazim spray treatment.",
         bounding_box: { x: 180, y: 120, width: 260, height: 190 },
         annotated_image: null,
         engine_used: "Webcam Vision Engine",
@@ -141,13 +140,16 @@ export function VisionAnalyticsPage() {
     }
   };
 
-  // Auto-predict polling loop every 2.5 seconds when camera stream is active
+  // Continuous auto-predict polling loop every 1.5 seconds when active
   useEffect(() => {
     if (!autoDetect) return;
 
+    // Run initial scan immediately
+    inspectLiveWebcamFrame();
+
     const interval = setInterval(() => {
       inspectLiveWebcamFrame();
-    }, 2500);
+    }, 1500);
 
     return () => clearInterval(interval);
   }, [autoDetect]);
@@ -177,11 +179,11 @@ export function VisionAnalyticsPage() {
               <span>LIVE WEBCAM TEA LEAF PATHOLOGY DETECTOR</span>
               <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                AUTO-PREDICT ACTIVE
+                REAL-TIME INFERENCE ACTIVE
               </span>
             </h1>
             <p className="text-xs text-white/50 font-mono mt-0.5">
-              Hold any green tea leaf or photo in front of your camera to detect Anthracnose, Blight, Coal Disease, or Chlorosis in real-time.
+              Hold any leaf or phone photo in front of your camera. Real-time OpenCV diagnosis updates automatically every 1.5 seconds.
             </p>
           </div>
         </div>
@@ -197,7 +199,7 @@ export function VisionAnalyticsPage() {
             }`}
           >
             <Zap className="h-4 w-4 text-emerald-400" />
-            <span>AUTO-DETECT: {autoDetect ? "ENABLED" : "PAUSED"}</span>
+            <span>AUTO-DETECT: {autoDetect ? "ENABLED (1.5s)" : "PAUSED"}</span>
           </button>
 
           <button
@@ -206,7 +208,7 @@ export function VisionAnalyticsPage() {
             className="px-5 py-2 rounded-xl bg-cyan-500/20 border-2 border-cyan-400 text-cyan-200 font-orb font-black hover:bg-cyan-500/30 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(0,240,255,0.3)]"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            <span>INSPECT WEBCAM FRAME NOW</span>
+            <span>FORCE SCAN WEBCAM NOW</span>
           </button>
         </div>
       </div>
@@ -220,7 +222,7 @@ export function VisionAnalyticsPage() {
             <div className="flex items-center justify-between font-orb text-xs font-bold text-cyan-400 pb-2 border-b border-white/10">
               <span className="flex items-center gap-2">
                 <Scan className="h-4 w-4 text-cyan-400" />
-                LIVE WEBCAM STREAM VS REAL-TIME OPENCV DETECTION OVERLAY
+                LIVE WEBCAM INPUT VS REAL-TIME OPENCV DIAGNOSTIC OVERLAY
               </span>
               <span className="font-mono text-[10px] text-emerald-400 flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
@@ -234,7 +236,7 @@ export function VisionAnalyticsPage() {
                 <div className="text-[11px] font-mono text-white/50 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <Camera className="h-3.5 w-3.5 text-cyan-400" />
-                    WEBCAM INPUT FEED
+                    LIVE WEBCAM INPUT FEED
                   </span>
                   <span className="text-[9px] text-cyan-400 font-bold">1080p @ 60 FPS</span>
                 </div>
@@ -255,42 +257,29 @@ export function VisionAnalyticsPage() {
                 </div>
               </div>
 
-              {/* Viewport 2: OpenCV Bounding Box Overlay */}
+              {/* Viewport 2: Real-time OpenCV Processed Base64 Frame (Showing Exact Camera Image) */}
               <div className="space-y-2">
                 <div className="text-[11px] font-mono text-cyan-400 flex items-center justify-between font-bold">
                   <span className="flex items-center gap-1.5">
                     <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
                     REAL-TIME LEAF DETECTION OVERLAY
                   </span>
-                  <span className="text-[9px] text-cyan-300">OPENCV + HSV</span>
+                  <span className="text-[9px] text-cyan-300 font-mono">OPENCV + BOUNDING BOX</span>
                 </div>
                 <div className="relative aspect-video rounded-xl bg-black border-2 border-cyan-500/40 overflow-hidden flex items-center justify-center shadow-[0_0_20px_rgba(0,240,255,0.2)]">
                   {prediction.annotated_image ? (
                     <img
                       src={prediction.annotated_image}
-                      alt="Annotated Leaf"
+                      alt="Annotated Leaf Frame"
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="relative w-full h-full">
-                      <img
-                        src="https://images.unsplash.com/photo-1576092768241-dec231879fc3?q=80&w=1000&auto=format&fit=crop"
-                        alt="Leaf Overlay"
-                        className="w-full h-full object-cover opacity-80"
-                      />
-                      {/* Bounding Box Overlay */}
-                      <div
-                        className="absolute border-2 border-emerald-400 rounded bg-emerald-500/20 shadow-[0_0_20px_rgba(0,168,107,0.6)] flex items-start p-1"
-                        style={{
-                          left: `${(prediction.bounding_box.x / 640) * 100}%`,
-                          top: `${(prediction.bounding_box.y / 480) * 100}%`,
-                          width: `${(prediction.bounding_box.width / 640) * 100}%`,
-                          height: `${(prediction.bounding_box.height / 480) * 100}%`,
-                        }}
-                      >
-                        <span className="text-[8px] font-mono font-bold text-emerald-300 bg-black/80 px-1 py-0.2 rounded border border-emerald-500/40">
-                          {prediction.disease} [{prediction.confidence}%]
-                        </span>
+                    <div className="relative w-full h-full flex items-center justify-center bg-black/90">
+                      <div className="text-center space-y-2 p-4">
+                        <RefreshCw className="h-6 w-6 text-cyan-400 animate-spin mx-auto" />
+                        <div className="font-mono text-xs text-cyan-300 font-bold">
+                          CONNECTING TO WEBCAM VISION ENGINE...
+                        </div>
                       </div>
                     </div>
                   )}
