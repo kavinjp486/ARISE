@@ -38,14 +38,14 @@ export function FirstPersonCameraHUD({
         <div className="flex items-center gap-2.5">
           <div className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
           <span className="font-orb font-black text-xs text-cyan-400 tracking-wider">
-            VIEWPORT C — 👁️ 1ST-PERSON CAMERA FEED (LOOKING DOWN AT CANOPY)
+            VIEWPORT C — 👁️ FIRST-PERSON VIEW (STANDING AMONG TEA LEAVES)
           </span>
         </div>
 
         <div className="flex items-center gap-3 font-mono text-[11px]">
           <div className="flex items-center gap-1.5 text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
             <Camera className="h-3 w-3" />
-            <span>DOWNWARD FOV 1080p @ 60 FPS</span>
+            <span>ESTATE FOV 1080p @ 60 FPS</span>
           </div>
 
           <div className="flex items-center gap-1.5 text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
@@ -57,35 +57,35 @@ export function FirstPersonCameraHUD({
 
       {/* Main First Person Downward Camera Viewport */}
       <div className="relative flex-1 w-full bg-[#050E0A] overflow-hidden flex items-center justify-center">
-        {/* Dynamic Synthetic Tea Leaf Canopy Background shifting with (posX, posY) */}
+        {/* Generated First-Person Tea Estate Background Image */}
         <motion.div
-          className="absolute inset-0 bg-cover bg-center transition-transform duration-300"
+          className="absolute inset-0 bg-cover bg-center transition-transform duration-500"
           animate={{
-            scale: 1.15,
-            x: (posX - 50) * -1.5,
-            y: (posY - 50) * -1.5,
+            scale: 1.12,
+            x: (posX - 50) * -1.8,
+            y: (posY - 50) * -1.8,
           }}
           style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1576092768241-dec231879fc3?q=80&w=1200&auto=format&fit=crop')`,
+            backgroundImage: `url('/tea_plantation_fpv.png')`,
           }}
         />
 
-        {/* Dark Vignette & Sensor Grid Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#04080F] via-transparent to-black/60 pointer-events-none z-10" />
+        {/* Natural Sun Flare Glow & Vignette */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#04080F] via-transparent to-black/40 pointer-events-none z-10" />
         <div
-          className="absolute inset-0 opacity-20 pointer-events-none z-10"
+          className="absolute inset-0 opacity-15 pointer-events-none z-10"
           style={{
-            backgroundImage: `linear-gradient(to right, rgba(0, 240, 255, 0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 240, 255, 0.1) 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(to right, rgba(0, 240, 255, 0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 240, 255, 0.08) 1px, transparent 1px)`,
             backgroundSize: "40px 40px, 40px 40px",
           }}
         />
 
-        {/* Center Target Reticle HUD Crosshairs */}
+        {/* Tactical Crosshairs HUD */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-          <div className="relative w-44 h-44 border-2 border-dashed border-cyan-400/40 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(0,240,255,0.2)]">
+          <div className="relative w-48 h-48 border-2 border-dashed border-cyan-400/40 rounded-full flex items-center justify-center shadow-[0_0_25px_rgba(0,240,255,0.25)]">
             <Crosshair className="h-10 w-10 text-cyan-400" />
-            <span className="absolute -top-3 text-[9px] font-mono text-cyan-400 bg-black/80 px-1.5 py-0.5 rounded border border-cyan-500/30">
-              DOWNWARD CAMERA FOCAL AXIS
+            <span className="absolute -top-3 text-[9px] font-mono text-cyan-400 bg-black/80 px-2 py-0.5 rounded border border-cyan-500/30">
+              FIRST-PERSON FIELD OF VIEW
             </span>
           </div>
         </div>
@@ -135,7 +135,7 @@ export function FirstPersonCameraHUD({
               <div className="w-full flex justify-between items-center text-xs font-mono font-bold text-cyan-400 bg-black/80 px-2 py-1 rounded border border-cyan-500/40">
                 <span className="flex items-center gap-1">
                   <CheckCircle2 className="h-3.5 w-3.5 text-cyan-400" />
-                  APICAL TEA SHOOTS
+                  FRESH TEA SHOOTS
                 </span>
                 <span>[98% CONF]</span>
               </div>
@@ -154,7 +154,7 @@ export function FirstPersonCameraHUD({
             transition={{ repeat: Infinity, duration: 0.4 }}
             className="absolute z-30 pointer-events-none flex flex-col items-center justify-center"
           >
-            <div className="text-2xl animate-spin">✂️</div>
+            <div className="text-3xl animate-spin">✂️</div>
             <div className="font-orb font-black text-xs text-emerald-400 bg-black/80 px-2 py-1 rounded border border-emerald-400">
               PLUCKING LEAVES...
             </div>
@@ -170,7 +170,7 @@ export function FirstPersonCameraHUD({
           </div>
           <div>
             <div className="font-orb text-xs font-bold text-white flex items-center gap-2">
-              <span>HARVEST RECOMMENDATION:</span>
+              <span>ESTATE PERSPECTIVE:</span>
               <span className="text-emerald-400 font-mono text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/10 border border-emerald-500/30">
                 ROW {row + 1} · COL {col + 1}
               </span>
@@ -180,7 +180,7 @@ export function FirstPersonCameraHUD({
                 ? "Pathology detected — Bio-fungicide spray recommended."
                 : isHarvestedZone
                 ? "Zone harvested — Move to adjacent crop sector."
-                : "Optimal flush density (98%) — Press TRIGGER HARVEST to pluck."}
+                : "Standing among fresh tea shoots (98% flush density) — Press PLUCK to harvest."}
             </div>
           </div>
         </div>
