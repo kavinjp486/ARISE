@@ -31,10 +31,13 @@ export function FirstPersonCameraHUD({
   const isDiseaseZone = currentCell?.status === "disease";
   const isHarvestedZone = currentCell?.status === "harvested";
 
-  // Forward/Backward maps directly to ZOOM (Scale), Left/Right maps to LATERAL PAN (X)
-  // Scale range: 1.0 (far back) to 1.45 (deep inside crop row)
-  const zoomScale = 1.0 + (posY / 100) * 0.45;
-  const lateralPanX = (posX - 50) * -2.4;
+  // Pronounced First-Person Camera Motion:
+  // Forward (UP button: posY -> 0): Zooms in + shifts image downward to simulate moving forward into foliage
+  // Backward (DOWN button: posY -> 100): Zooms out + shifts image upward
+  // Left / Right (posX: 0..100): Pans horizontally across screen (-180px to +180px)
+  const zoomScale = 1.1 + ((100 - posY) / 100) * 0.55;
+  const forwardPanY = (50 - posY) * 3.2;
+  const lateralPanX = (50 - posX) * 3.5;
 
   return (
     <div className="relative w-full h-full min-h-[460px] bg-[#04080F] border border-cyan-500/20 rounded-2xl overflow-hidden flex flex-col font-sans select-none shadow-[0_0_40px_rgba(0,0,0,0.8)]">
@@ -43,7 +46,7 @@ export function FirstPersonCameraHUD({
         <div className="flex items-center gap-2.5">
           <div className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
           <span className="font-orb font-black text-xs text-cyan-400 tracking-wider">
-            VIEWPORT C — 👁️ FIRST-PERSON VIEW (FORWARD/BACKWARD PROJECTION)
+            VIEWPORT C — 👁️ FIRST-PERSON VIEW (DYNAMIC CAMERA MOTION)
           </span>
         </div>
 
@@ -55,19 +58,25 @@ export function FirstPersonCameraHUD({
 
           <div className="flex items-center gap-1.5 text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
             <Sparkles className="h-3 w-3" />
-            <span>DEPTH ZOOM: {Math.round(zoomScale * 100)}%</span>
+            <span>POSITION: X:{Math.round(posX)}% Y:{Math.round(posY)}%</span>
           </div>
         </div>
       </div>
 
-      {/* Main First Person Downward Camera Viewport */}
+      {/* Main First Person Camera Viewport */}
       <div className="relative flex-1 w-full bg-[#050E0A] overflow-hidden flex items-center justify-center">
-        {/* Photorealistic First-Person Tea Estate Background with Pure Zoom/Pan Motion */}
+        {/* Photorealistic First-Person Tea Estate Background with Responsive Motion */}
         <motion.div
-          className="absolute inset-0 bg-cover bg-center transition-all duration-300 ease-out"
+          className="absolute -inset-16 bg-cover bg-center"
           animate={{
             scale: zoomScale,
             x: lateralPanX,
+            y: forwardPanY,
+          }}
+          transition={{
+            type: "spring",
+            stiffness: 140,
+            damping: 18,
           }}
           style={{
             backgroundImage: `url('/tea_plantation_fpv.png')`,
@@ -89,7 +98,7 @@ export function FirstPersonCameraHUD({
           <div className="relative w-48 h-48 border-2 border-dashed border-cyan-400/40 rounded-full flex items-center justify-center shadow-[0_0_25px_rgba(0,240,255,0.25)]">
             <Crosshair className="h-10 w-10 text-cyan-400" />
             <span className="absolute -top-3 text-[9px] font-mono text-cyan-400 bg-black/80 px-2 py-0.5 rounded border border-cyan-500/30">
-              FIRST-PERSON FORWARD FOV
+              CAMERA FOV [X:{Math.round(posX)}% Y:{Math.round(posY)}%]
             </span>
           </div>
         </div>
