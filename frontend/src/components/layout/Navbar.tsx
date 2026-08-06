@@ -20,8 +20,8 @@ export function Navbar({ activeTab, onTabChange }: NavbarProps) {
           </div>
           <div>
             <div className="font-orb text-lg font-black tracking-wider flex items-center gap-1.5">
-              <span>Aero</span>
-              <span className="text-b">Cam</span>
+              <span>ARI</span>
+              <span className="text-b">SE</span>
             </div>
             <div className="text-[10px] text-white/40 tracking-tight font-medium">
               Cable Suspended Tea Robot

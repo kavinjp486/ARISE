@@ -43,8 +43,8 @@ export function LandingPage({ go }: LandingPageProps) {
             <span>●</span> System Online · Nilgiris Estate
           </div>
           <h1 className="font-orb text-5xl md:text-7xl font-black leading-none tracking-tight">
-            <span className="text-white">Aero</span>
-            <span className="text-b">Cam</span>
+            <span className="text-white">ARI</span>
+            <span className="text-b">SE</span>
           </h1>
           <p className="text-white/40 text-base">
             Cable Suspended Tea Harvesting Robot
@@ -69,7 +69,7 @@ export function LandingPage({ go }: LandingPageProps) {
               onClick={() => go("control")}
               className="btn-press px-8 py-4 rounded-2xl font-orb font-bold text-sm glass-b text-b border border-b/40 hover:bg-b/10 transition-colors panim-b"
             >
-              🕹️ Control AeroCam
+              🕹️ Control ARISE
             </button>
           </div>
           <div className="flex gap-8 pt-4">
