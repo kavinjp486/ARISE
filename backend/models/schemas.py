@@ -31,6 +31,19 @@ class ControlResponse(BaseModel):
 
 # --- AI Prediction Schemas ---
 
+class BoundingBoxSchema(BaseModel):
+    x: int = Field(..., description="Bounding box top-left X coordinate")
+    y: int = Field(..., description="Bounding box top-left Y coordinate")
+    width: int = Field(..., description="Bounding box width")
+    height: int = Field(..., description="Bounding box height")
+
+class VisionDetectionResponse(BaseModel):
+    status: str = Field(..., description="'HEALTHY' | 'WARNING' | 'DISEASED' | 'NO_LEAF_DETECTED'")
+    disease: str = Field(..., description="Disease diagnosis string")
+    yellow_percentage: float = Field(..., description="Chlorosis yellowing surface percentage")
+    confidence: int = Field(..., description="Detection confidence score (0-100)")
+    bounding_box: BoundingBoxSchema = Field(..., description="Localization bounding box")
+
 class PredictionData(BaseModel):
     primaryLabel: str = Field(..., description="Primary classification e.g. 'Ready for Harvest'")
     confidence: float = Field(..., description="Confidence score between 0.0 and 1.0")
@@ -42,6 +55,7 @@ class PredictionData(BaseModel):
 class PredictRequest(BaseModel):
     features: Optional[List[float]] = Field(None, description="Optional feature vector input")
     image_url: Optional[str] = Field(None, description="Optional camera image frame URL")
+    image_base64: Optional[str] = Field(None, description="Optional base64 encoded camera frame payload")
 
 # --- Activity Log Schemas ---
 
