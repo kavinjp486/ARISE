@@ -1,8 +1,8 @@
 """
-Prediction Service Layer
+Prediction Service Layer (Thread-Safe Shared Camera Stream)
 
-Decouples FastAPI endpoint routes from OpenCV image decoding & model inference.
-Handles camera frame capture, base64 images, and streaming responses.
+Shares the active live webcam frame between MJPEG video feed (/video_feed)
+and instant vision prediction inference (/inspect, /predict). Prevents camera locking issues on Windows.
 """
 
 import base64
@@ -14,47 +14,54 @@ from backend.ml.tea_leaf_detector import TeaLeafDetector
 
 class PredictionService:
     """
-    Service layer providing camera ingestion, image decoding, and vision model execution routines.
+    Service layer providing camera ingestion, image decoding, and thread-safe frame sharing.
     """
 
+    # Global shared frame buffer updated continuously by the webcam stream
+    latest_frame: Optional[np.ndarray] = None
+
     @classmethod
-    def capture_live_frame(cls) -> np.ndarray:
+    def update_latest_frame(cls, frame: np.ndarray):
+        if frame is not None and frame.size > 0:
+            cls.latest_frame = frame.copy()
+
+    @classmethod
+    def get_active_frame(cls) -> np.ndarray:
         """
-        Attempts to read a frame from the onboard robot camera / USB webcam.
-        Falls back to generating a synthetic tea leaf frame if webcam is not present.
+        Retrieves the latest live webcam frame from memory buffer.
+        Falls back to opening camera or generating a frame if buffer is empty.
         """
+        if cls.latest_frame is not None and cls.latest_frame.size > 0:
+            return cls.latest_frame.copy()
+
         try:
             cap = cv2.VideoCapture(0)
             if cap.isOpened():
                 ret, frame = cap.read()
                 cap.release()
                 if ret and frame is not None and frame.size > 0:
+                    cls.update_latest_frame(frame)
                     return frame
         except Exception:
             pass
 
-        # Fallback Synthetic High-Resolution Tea Leaf Frame
+        # Fallback synthetic frame if webcam is completely offline
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         frame[:] = (15, 25, 18)
-
-        # Draw a synthetic tea leaf contour
         cv2.ellipse(frame, (320, 240), (140, 70), 25, 0, 360, (35, 185, 50), -1)
-        # Add chlorosis yellowing spot
         cv2.circle(frame, (350, 230), 25, (20, 215, 225), -1)
-        # Add brown spot
         cv2.circle(frame, (280, 250), 12, (25, 45, 160), -1)
-
         return frame
 
     @classmethod
     def generate_mjpeg_stream(cls) -> Generator[bytes, None, None]:
         """
-        Generates continuous MJPEG video stream bytes for /video_feed route.
+        Generates continuous MJPEG video stream bytes for /video_feed route
+        while updating the shared latest_frame buffer for real-time inference.
         """
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
-            # Generate static frame stream if webcam is offline
-            frame = cls.capture_live_frame()
+            frame = cls.get_active_frame()
             _, jpeg = cv2.imencode(".jpg", frame)
             frame_bytes = jpeg.tobytes()
             while True:
@@ -63,13 +70,17 @@ class PredictionService:
         try:
             while True:
                 ret, frame = cap.read()
-                if not ret:
-                    frame = cls.capture_live_frame()
+                if not ret or frame is None:
+                    frame = cls.get_active_frame()
+                else:
+                    # Update global shared frame buffer for instant prediction access
+                    cls.update_latest_frame(frame)
 
-                # Add live timestamp overlay
+                # Add timestamp text overlay on stream
+                annotated_stream = frame.copy()
                 cv2.putText(
-                    frame,
-                    "ARISE ROBOT CAM 1080p | LIVE STREAM",
+                    annotated_stream,
+                    "ARISE ROBOT CAM 1080p | LIVE WEBCAM STREAM",
                     (15, 30),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.55,
@@ -78,7 +89,7 @@ class PredictionService:
                     cv2.LINE_AA,
                 )
 
-                _, jpeg = cv2.imencode(".jpg", frame)
+                _, jpeg = cv2.imencode(".jpg", annotated_stream)
                 yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n")
         finally:
             cap.release()
@@ -86,7 +97,7 @@ class PredictionService:
     @classmethod
     def process_image_bytes(cls, image_bytes: bytes) -> Dict[str, Any]:
         if not image_bytes:
-            return TeaLeafDetector.detect_frame(cls.capture_live_frame())
+            return TeaLeafDetector.detect_frame(cls.get_active_frame())
 
         try:
             nparr = np.frombuffer(image_bytes, np.uint8)
@@ -127,7 +138,7 @@ class PredictionService:
     @classmethod
     def process_sample_frame(cls) -> Dict[str, Any]:
         """
-        Captures live camera frame (or fallback sample) and runs vision detection.
+        Retrieves current live frame from shared memory buffer and runs vision detection.
         """
-        frame = cls.capture_live_frame()
+        frame = cls.get_active_frame()
         return TeaLeafDetector.detect_frame(frame)
