@@ -49,11 +49,12 @@ export function FirstPersonCameraHUD({
     }
   }, [stepIndex, prevStep]);
 
-  // Crisp GeoGuessr Position Translation (No scaling/blur)
-  // X pan (posX: 0..100) -> 30% to 70% background focal alignment
-  // Y step (posY: 0..100) -> 20% to 80% background focal depth alignment
-  const bgPosX = 50 + (posX - 50) * 0.45;
-  const bgPosY = 50 + (posY - 50) * 0.45;
+  // Crisp & Responsive Pan Math (with 140% oversized container for full motion range)
+  // Left/Right (posX: 0..100) -> Pans horizontally X: -220px to +220px
+  // Forward/Backward (posY: 0..100) -> Pans forward/backward perspective Y & scale
+  const panX = (50 - posX) * 4.2;
+  const panY = (50 - posY) * 2.8;
+  const stepScale = 1.15 + stepIndex * 0.04;
 
   return (
     <div className="relative w-full h-full min-h-[460px] bg-[#04080F] border border-cyan-500/20 rounded-2xl overflow-hidden flex flex-col font-sans select-none shadow-[0_0_40px_rgba(0,0,0,0.8)]">
@@ -62,7 +63,7 @@ export function FirstPersonCameraHUD({
         <div className="flex items-center gap-2.5">
           <div className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
           <span className="font-orb font-black text-xs text-cyan-400 tracking-wider">
-            VIEWPORT C — 👁️ GEOGUESSR STEP NAVIGATION (CRISP FOV)
+            VIEWPORT C — 👁️ FIRST-PERSON VIEW (PAN & STEP NAVIGATION)
           </span>
         </div>
 
@@ -74,12 +75,12 @@ export function FirstPersonCameraHUD({
 
           <div className="flex items-center gap-1.5 text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
             <Sparkles className="h-3 w-3" />
-            <span>ROW {row + 1} · COL {col + 1}</span>
+            <span>X:{Math.round(posX)}% Y:{Math.round(posY)}%</span>
           </div>
         </div>
       </div>
 
-      {/* Main GeoGuessr Style Downward/Forward Camera Viewport */}
+      {/* Main Camera Viewport Container */}
       <div className="relative flex-1 w-full bg-[#050E0A] overflow-hidden flex items-center justify-center">
         {/* Crisp Camera Shutter Flash Overlay */}
         <AnimatePresence>
@@ -94,16 +95,25 @@ export function FirstPersonCameraHUD({
           )}
         </AnimatePresence>
 
-        {/* Photorealistic First-Person Tea Estate Image (Crisp & Sharp - No Blur/Zoom) */}
+        {/* Photorealistic First-Person Tea Estate Image (Oversized for Full X/Y Panning) */}
         <motion.div
-          className="absolute inset-0 bg-cover bg-center transition-all duration-300 ease-out"
+          className="absolute -inset-24 bg-cover bg-center"
+          animate={{
+            x: panX,
+            y: panY,
+            scale: stepScale,
+          }}
+          transition={{
+            type: "spring",
+            stiffness: 150,
+            damping: 20,
+          }}
           style={{
             backgroundImage: `url('/tea_plantation_fpv.png')`,
-            backgroundPosition: `${bgPosX}% ${bgPosY}%`,
           }}
         />
 
-        {/* Dark Vignette & Grid Line Overlays */}
+        {/* Dark Vignette & Sensor Overlay Lines */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#04080F] via-transparent to-black/40 pointer-events-none z-10" />
         <div
           className="absolute inset-0 opacity-15 pointer-events-none z-10"
@@ -113,7 +123,7 @@ export function FirstPersonCameraHUD({
           }}
         />
 
-        {/* GEOGUESSR FLOATING NAVIGATION CHEVRON ARROW (Pulsing Ground Indicator) */}
+        {/* GEOGUESSR FLOATING NAVIGATION CHEVRON ARROW */}
         <div className="absolute bottom-16 z-20 flex flex-col items-center pointer-events-none">
           <motion.div
             animate={{ y: [0, -8, 0] }}
@@ -124,7 +134,7 @@ export function FirstPersonCameraHUD({
               <ChevronUp className="h-6 w-6 stroke-[3]" />
             </div>
             <span className="font-mono text-[9px] font-bold text-cyan-400 bg-black/80 px-2 py-0.5 rounded border border-cyan-500/30">
-              GEO STEP 0{stepIndex + 1} (PRESS FORWARD)
+              STEP 0{stepIndex + 1} (PRESS FORWARD/BACKWARD)
             </span>
           </motion.div>
         </div>
@@ -134,7 +144,7 @@ export function FirstPersonCameraHUD({
           <div className="relative w-48 h-48 border-2 border-dashed border-cyan-400/40 rounded-full flex items-center justify-center shadow-[0_0_25px_rgba(0,240,255,0.25)]">
             <Crosshair className="h-10 w-10 text-cyan-400" />
             <span className="absolute -top-3 text-[9px] font-mono text-cyan-400 bg-black/80 px-2 py-0.5 rounded border border-cyan-500/30">
-              GEOGUESSR FOCAL AXIS
+              CAMERA FOV [X:{Math.round(posX)}% Y:{Math.round(posY)}%]
             </span>
           </div>
         </div>
