@@ -52,9 +52,8 @@ export function HeroCanvas() {
       for (let row = 0; row < 5; row++) {
         const ry = H * 0.62 + row * H * 0.08;
         for (let bx = 0; bx < W; bx += 26) {
-          const green = `rgba(${8 + row * 4},${60 + row * 12},${14 + row * 4},${
-            0.65 - row * 0.08
-          })`;
+          const green = `rgba(${8 + row * 4},${60 + row * 12},${14 + row * 4},${0.65 - row * 0.08
+            })`;
           ctx.fillStyle = green;
           ctx.beginPath();
           ctx.ellipse(

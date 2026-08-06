@@ -104,9 +104,8 @@ export function LandingPage({ go }: LandingPageProps) {
           {feats.map((f) => (
             <div
               key={f.title}
-              className={`rounded-2xl p-5 transition-all duration-300 ${
-                f.col === "g" ? "glass-g" : "glass-b"
-              }`}
+              className={`rounded-2xl p-5 transition-all duration-300 ${f.col === "g" ? "glass-g" : "glass-b"
+                }`}
             >
               <div className="text-4xl mb-4">{f.icon}</div>
               <h3 className="font-orb font-bold text-sm mb-2 text-white">

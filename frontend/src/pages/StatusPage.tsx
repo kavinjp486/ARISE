@@ -119,19 +119,17 @@ export function StatusPage({
 
         <div className="flex items-center gap-3">
           <span
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold font-orb ${
-              isRunning ? "glass-g text-g panim-g" : "glass text-white/30"
-            }`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold font-orb ${isRunning ? "glass-g text-g panim-g" : "glass text-white/30"
+              }`}
           >
             {isRunning ? "● RUNNING" : "○ PAUSED"}
           </span>
           <button
             onClick={onToggleRun}
-            className={`btn-press px-4 py-2 rounded-xl font-orb font-bold text-xs border-2 ${
-              isRunning
+            className={`btn-press px-4 py-2 rounded-xl font-orb font-bold text-xs border-2 ${isRunning
                 ? "border-red-500/60 text-red-400 hover:bg-red-500/10"
                 : "border-g text-g hover:bg-g/10"
-            }`}
+              }`}
           >
             {isRunning ? "⏸ Pause" : "▶ Resume"}
           </button>
@@ -288,11 +286,10 @@ export function StatusPage({
               {achievements.map((a) => (
                 <div
                   key={a.id}
-                  className={`flex flex-col items-center gap-1 p-2.5 rounded-xl text-center transition-all ${
-                    a.unlocked
+                  className={`flex flex-col items-center gap-1 p-2.5 rounded-xl text-center transition-all ${a.unlocked
                       ? "glass-b panim-b" + (a.justUnlocked ? " ach-pop" : "")
                       : "glass opacity-25 grayscale"
-                  }`}
+                    }`}
                 >
                   <span className="text-2xl">{a.icon}</span>
                   <span className="text-[10px] font-semibold leading-tight text-white/70">
