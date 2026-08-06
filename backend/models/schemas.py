@@ -45,6 +45,7 @@ class VisionDetectionResponse(BaseModel):
     recommendation: Optional[str] = Field("No action required", description="Actionable agronomist recommendation")
     bounding_box: BoundingBoxSchema = Field(..., description="Localization bounding box")
     annotated_image: Optional[str] = Field(None, description="Base64 encoded PNG annotated frame with detection overlays")
+    engine_used: Optional[str] = Field("Hybrid (OpenCV HSV + Contour Solidity)", description="Vision inference engine model used")
 
 class PredictionData(BaseModel):
     primaryLabel: str = Field(..., description="Primary classification e.g. 'Ready for Harvest'")
