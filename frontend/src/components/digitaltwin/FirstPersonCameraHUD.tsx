@@ -1,10 +1,13 @@
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertTriangle,
   Camera,
   CheckCircle2,
+  ChevronUp,
   Crosshair,
   Eye,
+  MapPin,
   Sparkles,
 } from "lucide-react";
 import type { CellData } from "@/types";
@@ -31,13 +34,23 @@ export function FirstPersonCameraHUD({
   const isDiseaseZone = currentCell?.status === "disease";
   const isHarvestedZone = currentCell?.status === "harvested";
 
-  // Pronounced First-Person Camera Motion:
-  // Forward (UP button: posY -> 0): Zooms in + shifts image downward to simulate moving forward into foliage
-  // Backward (DOWN button: posY -> 100): Zooms out + shifts image upward
-  // Left / Right (posX: 0..100): Pans horizontally across screen (-180px to +180px)
-  const zoomScale = 1.1 + ((100 - posY) / 100) * 0.55;
-  const forwardPanY = (50 - posY) * 3.2;
-  const lateralPanX = (50 - posX) * 3.5;
+  // GeoGuessr Discrete Step Index derived from posY (0 to 7 steps)
+  const stepIndex = Math.min(7, Math.max(0, Math.floor(((100 - posY) / 100) * 8)));
+  const [isStepping, setIsStepping] = useState(false);
+  const [prevStep, setPrevStep] = useState(stepIndex);
+
+  // Trigger optical motion blur flash whenever stepIndex changes
+  useEffect(() => {
+    if (stepIndex !== prevStep) {
+      setIsStepping(true);
+      setPrevStep(stepIndex);
+      const timer = setTimeout(() => setIsStepping(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [stepIndex, prevStep]);
+
+  // GeoGuessr Lateral Pan (Left/Right)
+  const lateralPanX = (50 - posX) * 3.8;
 
   return (
     <div className="relative w-full h-full min-h-[460px] bg-[#04080F] border border-cyan-500/20 rounded-2xl overflow-hidden flex flex-col font-sans select-none shadow-[0_0_40px_rgba(0,0,0,0.8)]">
@@ -46,36 +59,49 @@ export function FirstPersonCameraHUD({
         <div className="flex items-center gap-2.5">
           <div className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
           <span className="font-orb font-black text-xs text-cyan-400 tracking-wider">
-            VIEWPORT C — 👁️ FIRST-PERSON VIEW (DYNAMIC CAMERA MOTION)
+            VIEWPORT C — 👁️ GEOGUESSR STEP NAVIGATION (TEA ESTATE FOV)
           </span>
         </div>
 
         <div className="flex items-center gap-3 font-mono text-[11px]">
-          <div className="flex items-center gap-1.5 text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
-            <Camera className="h-3 w-3" />
-            <span>ESTATE FOV 1080p @ 60 FPS</span>
+          <div className="flex items-center gap-1.5 text-cyan-400 bg-cyan-500/10 px-2.5 py-0.5 rounded border border-cyan-500/20">
+            <MapPin className="h-3 w-3 text-cyan-400" />
+            <span className="font-bold">STEP 0{stepIndex + 1} / 08</span>
           </div>
 
           <div className="flex items-center gap-1.5 text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
             <Sparkles className="h-3 w-3" />
-            <span>POSITION: X:{Math.round(posX)}% Y:{Math.round(posY)}%</span>
+            <span>ROW {row + 1} · COL {col + 1}</span>
           </div>
         </div>
       </div>
 
-      {/* Main First Person Camera Viewport */}
+      {/* Main GeoGuessr Style Downward/Forward Camera Viewport */}
       <div className="relative flex-1 w-full bg-[#050E0A] overflow-hidden flex items-center justify-center">
-        {/* Photorealistic First-Person Tea Estate Background with Responsive Motion */}
+        {/* Optical Shutter Flash on Step Transition */}
+        <AnimatePresence>
+          {isStepping && (
+            <motion.div
+              initial={{ opacity: 0.8 }}
+              animate={{ opacity: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0 bg-cyan-400/20 backdrop-blur-sm z-30 pointer-events-none"
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Photorealistic First-Person Tea Estate Image Layer */}
         <motion.div
           className="absolute -inset-16 bg-cover bg-center"
           animate={{
-            scale: zoomScale,
+            scale: 1.05 + stepIndex * 0.05,
             x: lateralPanX,
-            y: forwardPanY,
+            filter: isStepping ? "blur(3px)" : "blur(0px)",
           }}
           transition={{
             type: "spring",
-            stiffness: 140,
+            stiffness: 160,
             damping: 18,
           }}
           style={{
@@ -83,7 +109,7 @@ export function FirstPersonCameraHUD({
           }}
         />
 
-        {/* Natural Sun Flare Glow & Vignette */}
+        {/* Dark Vignette & Grid Line Overlays */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#04080F] via-transparent to-black/40 pointer-events-none z-10" />
         <div
           className="absolute inset-0 opacity-15 pointer-events-none z-10"
@@ -93,12 +119,28 @@ export function FirstPersonCameraHUD({
           }}
         />
 
+        {/* GEOGUESSR FLOATING NAVIGATION CHEVRON ARROW (Pulsing Ground Indicator) */}
+        <div className="absolute bottom-16 z-20 flex flex-col items-center pointer-events-none">
+          <motion.div
+            animate={{ y: [0, -8, 0] }}
+            transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
+            className="flex flex-col items-center gap-1 cursor-pointer"
+          >
+            <div className="h-10 w-10 rounded-full bg-cyan-500/20 border-2 border-cyan-400 flex items-center justify-center text-cyan-400 shadow-[0_0_20px_rgba(0,240,255,0.6)] backdrop-blur-md">
+              <ChevronUp className="h-6 w-6 stroke-[3]" />
+            </div>
+            <span className="font-mono text-[9px] font-bold text-cyan-400 bg-black/80 px-2 py-0.5 rounded border border-cyan-500/30">
+              STEP FORWARD (STEP 0{stepIndex + 1})
+            </span>
+          </motion.div>
+        </div>
+
         {/* Tactical Crosshairs HUD */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
           <div className="relative w-48 h-48 border-2 border-dashed border-cyan-400/40 rounded-full flex items-center justify-center shadow-[0_0_25px_rgba(0,240,255,0.25)]">
             <Crosshair className="h-10 w-10 text-cyan-400" />
             <span className="absolute -top-3 text-[9px] font-mono text-cyan-400 bg-black/80 px-2 py-0.5 rounded border border-cyan-500/30">
-              CAMERA FOV [X:{Math.round(posX)}% Y:{Math.round(posY)}%]
+              GEOGUESSR CAM FOV
             </span>
           </div>
         </div>
@@ -175,7 +217,7 @@ export function FirstPersonCameraHUD({
         )}
       </div>
 
-      {/* Bottom AI Recommendation Banner */}
+      {/* Bottom AI Recommendation Banner & Step Breadcrumbs */}
       <div className="px-4 py-2.5 bg-[#040C16] border-t border-cyan-500/30 flex flex-wrap items-center justify-between gap-4 z-30">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-cyan-500/10 border border-cyan-400/30 flex items-center justify-center text-cyan-400">
@@ -183,17 +225,17 @@ export function FirstPersonCameraHUD({
           </div>
           <div>
             <div className="font-orb text-xs font-bold text-white flex items-center gap-2">
-              <span>FIRST-PERSON PERSPECTIVE:</span>
+              <span>GEOGUESSR STEP LOCATION:</span>
               <span className="text-emerald-400 font-mono text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/10 border border-emerald-500/30">
-                ROW {row + 1} · COL {col + 1}
+                STEP 0{stepIndex + 1} OF 08 · ROW {row + 1}
               </span>
             </div>
             <div className="text-[11px] text-white/60 font-mono mt-0.5">
               {isDiseaseZone
                 ? "Pathology detected — Bio-fungicide spray recommended."
                 : isHarvestedZone
-                ? "Zone harvested — Move to adjacent crop sector."
-                : "Standing among fresh tea shoots (98% flush density) — Press PLUCK to harvest."}
+                ? "Zone harvested — Step forward to next tea sector."
+                : "GeoGuessr step active — Press FORWARD to step down the plantation row."}
             </div>
           </div>
         </div>
