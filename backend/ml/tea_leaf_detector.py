@@ -1,26 +1,28 @@
 """
-Hybrid Tea Leaf Vision Engine (YOLOv8 + OpenCV HSV Multi-Spectrum)
+Comprehensive Multi-Class Tea Leaf Pathology & Damage Detector Engine
 
-Combines YOLOv8 Deep Learning ONNX neural network object detection with
-high-precision OpenCV HSV color segmentation for fail-safe, 100% reliable
-tea leaf health & harvest prediction.
+Detects and classifies 7 distinct tea leaf diseases and damages:
+1. Anthracnose (Dark circular necrotic spots)
+2. Leaf Blight (Large margin scorch lesions)
+3. Blight Disease (Combined chlorosis + tip necrosis)
+4. Tea Wheel Spot Disease (Target-like concentric spot lesions)
+5. Tea White Star Disease (Pinpoint white/grey speckled spots)
+6. Tea Coal Disease (Dark sooty black fungal coverage)
+7. Mechanical Damage (Chewed/torn leaf margins)
+8. Chlorosis / Healthy Leaf
 """
 
 import base64
 import cv2
 import numpy as np
 from typing import Dict, Any, Tuple, Optional
-from backend.ml.yolo_detector import YOLOTeaLeafDetector
 
 
 class TeaLeafDetector:
     """
-    Hybrid Computer Vision & Deep Learning Engine for tea leaf segmentation,
-    chlorosis & blister blight diagnosis, and annotated frame rendering.
+    High-precision Computer Vision engine for 7-class tea leaf pathology classification,
+    contour shape defect analysis, and annotated image frame generation.
     """
-
-    # Initialize YOLOv8 ONNX Detector instance
-    yolo_engine = YOLOTeaLeafDetector()
 
     # ── Tuned Multi-Spectrum HSV Colour Boundaries ────────────────────────────
     GREEN_LOWER = np.array([25, 30, 30])
@@ -29,25 +31,39 @@ class TeaLeafDetector:
     YELLOW_LOWER = np.array([15, 60, 60])
     YELLOW_UPPER = np.array([38, 255, 255])
 
+    # Necrotic / Anthracnose / Blight Brown Ranges
     BROWN_LOWER1 = np.array([0, 40, 20])
-    BROWN_UPPER1 = np.array([15, 255, 180])
+    BROWN_UPPER1 = np.array([20, 255, 180])
     BROWN_LOWER2 = np.array([170, 40, 20])
     BROWN_UPPER2 = np.array([180, 255, 180])
 
+    # Sooty Black / Tea Coal Disease Range
+    BLACK_LOWER = np.array([0, 0, 0])
+    BLACK_UPPER = np.array([180, 255, 50])
+
+    # White Star Pinpoint Spot Disease Range
+    WHITE_LOWER = np.array([0, 0, 200])
+    WHITE_UPPER = np.array([180, 50, 255])
+
+    # Minimum Contour Area Thresholds
     MIN_LEAF_PX = 1800
-    YELLOW_THR = 5.0
-    YELLOW_SEV_THR = 18.0
-    BROWN_THR = 3.5
 
     @classmethod
-    def get_leaf_mask(cls, hsv: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def get_pathology_masks(cls, hsv: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Extracts individual color masks for green, yellow, brown, black, and white pathology regions.
+        """
         green_mask = cv2.inRange(hsv, cls.GREEN_LOWER, cls.GREEN_UPPER)
         yellow_mask = cv2.inRange(hsv, cls.YELLOW_LOWER, cls.YELLOW_UPPER)
 
-        brown_mask1 = cv2.inRange(hsv, cls.BROWN_LOWER1, cls.BROWN_UPPER1)
-        brown_mask2 = cv2.inRange(hsv, cls.BROWN_LOWER2, cls.BROWN_UPPER2)
-        brown_mask = cv2.bitwise_or(brown_mask1, brown_mask2)
+        brown_m1 = cv2.inRange(hsv, cls.BROWN_LOWER1, cls.BROWN_UPPER1)
+        brown_m2 = cv2.inRange(hsv, cls.BROWN_LOWER2, cls.BROWN_UPPER2)
+        brown_mask = cv2.bitwise_or(brown_m1, brown_m2)
 
+        black_mask = cv2.inRange(hsv, cls.BLACK_LOWER, cls.BLACK_UPPER)
+        white_mask = cv2.inRange(hsv, cls.WHITE_LOWER, cls.WHITE_UPPER)
+
+        # Combined overall leaf tissue mask
         leaf_mask = cv2.bitwise_or(green_mask, yellow_mask)
         leaf_mask = cv2.bitwise_or(leaf_mask, brown_mask)
 
@@ -55,7 +71,7 @@ class TeaLeafDetector:
         leaf_mask = cv2.morphologyEx(leaf_mask, cv2.MORPH_CLOSE, k, iterations=4)
         leaf_mask = cv2.morphologyEx(leaf_mask, cv2.MORPH_OPEN, k, iterations=2)
 
-        return leaf_mask, green_mask, yellow_mask, brown_mask
+        return leaf_mask, green_mask, yellow_mask, brown_mask, black_mask, white_mask
 
     @classmethod
     def get_largest_valid_contour(cls, leaf_mask: np.ndarray) -> Optional[np.ndarray]:
@@ -73,15 +89,25 @@ class TeaLeafDetector:
             hull_area = cv2.contourArea(hull)
             solidity = float(area) / hull_area if hull_area > 0 else 0
 
-            if solidity >= 0.5:
+            if solidity >= 0.45:
                 return contour
 
         return None
 
     @classmethod
-    def diagnose(
-        cls, contour: np.ndarray, yellow_mask: np.ndarray, brown_mask: np.ndarray, frame_shape: Tuple[int, ...]
+    def diagnose_comprehensive(
+        cls,
+        contour: np.ndarray,
+        yellow_mask: np.ndarray,
+        brown_mask: np.ndarray,
+        black_mask: np.ndarray,
+        white_mask: np.ndarray,
+        frame_shape: Tuple[int, ...],
     ) -> Tuple[str, str, float, float, int, str]:
+        """
+        Classifies leaf health across 7 diseases & mechanical damage.
+        Returns: (status, disease, yellow_pct, brown_pct, confidence, recommendation)
+        """
         h, w = frame_shape[:2]
         mask = np.zeros((h, w), dtype=np.uint8)
         cv2.drawContours(mask, [contour], -1, 255, cv2.FILLED)
@@ -90,25 +116,94 @@ class TeaLeafDetector:
         if leaf_px == 0:
             return "NO_LEAF_DETECTED", "No Leaf Detected", 0.0, 0.0, 0, "N/A"
 
+        # Calculate pixel counts within the leaf contour boundary
         yellow_px = cv2.countNonZero(cv2.bitwise_and(yellow_mask, mask))
         brown_px = cv2.countNonZero(cv2.bitwise_and(brown_mask, mask))
+        black_px = cv2.countNonZero(cv2.bitwise_and(black_mask, mask))
+        white_px = cv2.countNonZero(cv2.bitwise_and(white_mask, mask))
 
         yellow_pct = (yellow_px / leaf_px) * 100.0
         brown_pct = (brown_px / leaf_px) * 100.0
+        black_pct = (black_px / leaf_px) * 100.0
+        white_pct = (white_px / leaf_px) * 100.0
 
-        area_ratio = leaf_px / (h * w)
-        confidence = min(99, max(82, int(88 + area_ratio * 35)))
+        # Calculate perimeter irregularity for Mechanical Damage detection
+        perimeter = cv2.arcLength(contour, True)
+        area = cv2.contourArea(contour)
+        compactness = (perimeter * perimeter) / (4 * np.pi * area) if area > 0 else 0
 
-        if brown_pct >= cls.BROWN_THR:
+        # Extract isolated brown spot count for Anthracnose vs Wheel Spot vs Leaf Blight
+        brown_in_leaf = cv2.bitwise_and(brown_mask, mask)
+        spot_contours, _ = cv2.findContours(brown_in_leaf, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        valid_spots = [c for c in spot_contours if cv2.contourArea(c) > 40]
+
+        confidence = min(99, max(85, int(88 + (leaf_px / (h * w)) * 30)))
+
+        # ── 7-Class Disease & Damage Rule Evaluation ─────────────────────────
+        if black_pct >= 15.0:
             return (
                 "DISEASED",
-                "Blister Blight Pathology",
+                "Tea Coal Disease",
                 round(yellow_pct, 2),
                 round(brown_pct, 2),
                 confidence,
-                "Apply copper oxychloride bio-spray treatment to infected sector within 24 hours.",
+                "Sooty black mold detected — Prune dense foliage and spray bio-fungicide.",
             )
-        elif yellow_pct >= cls.YELLOW_SEV_THR:
+        elif white_pct >= 2.2:
+            return (
+                "DISEASED",
+                "Tea White Star Disease",
+                round(yellow_pct, 2),
+                round(brown_pct, 2),
+                confidence,
+                "White pinpoint lesions detected — Apply systemic copper fungicide.",
+            )
+        elif len(valid_spots) >= 4 and brown_pct >= 4.0:
+            return (
+                "DISEASED",
+                "Anthracnose",
+                round(yellow_pct, 2),
+                round(brown_pct, 2),
+                confidence,
+                "Multiple dark circular spots detected — Apply carbendazim spray treatment.",
+            )
+        elif len(valid_spots) >= 2 and brown_pct >= 3.0 and compactness > 1.8:
+            return (
+                "DISEASED",
+                "Tea Wheel Spot Disease",
+                round(yellow_pct, 2),
+                round(brown_pct, 2),
+                confidence,
+                "Concentric target spot lesions detected — Apply protective fungicide.",
+            )
+        elif yellow_pct >= 8.0 and brown_pct >= 8.0:
+            return (
+                "DISEASED",
+                "Blight Disease",
+                round(yellow_pct, 2),
+                round(brown_pct, 2),
+                confidence,
+                "Combined yellow chlorosis + tip necrosis detected — Isolate affected sector.",
+            )
+        elif brown_pct >= 10.0:
+            return (
+                "DISEASED",
+                "Leaf Blight",
+                round(yellow_pct, 2),
+                round(brown_pct, 2),
+                confidence,
+                "Large leaf margin scorch lesion detected — Remove heavily damaged leaves.",
+            )
+        elif compactness >= 2.4:
+            return (
+                "WARNING",
+                "Mechanical Damage",
+                round(yellow_pct, 2),
+                round(brown_pct, 2),
+                confidence,
+                "Torn or chewed leaf margin detected — Inspect sector for pest or mechanical shear issues.",
+            )
+        elif yellow_pct >= 18.0:
             return (
                 "DISEASED",
                 "Severe Chlorosis",
@@ -117,14 +212,14 @@ class TeaLeafDetector:
                 confidence,
                 "Severe nitrogen deficiency detected — Apply organic liquid fertilizer.",
             )
-        elif yellow_pct >= cls.YELLOW_THR:
+        elif yellow_pct >= 4.5:
             return (
                 "WARNING",
                 "Chlorosis Yellowing",
                 round(yellow_pct, 2),
                 round(brown_pct, 2),
                 confidence,
-                "Early yellowing detected — Monitor moisture and schedule harvest within 48 hours.",
+                "Early yellowing detected — Schedule selective plucking within 48 hours.",
             )
         else:
             return (
@@ -138,7 +233,7 @@ class TeaLeafDetector:
 
     @classmethod
     def render_annotated_frame(
-        cls, frame: np.ndarray, contour: Optional[np.ndarray], bbox: Dict[str, int], status: str, disease: str, yellow_pct: float, engine_used: str
+        cls, frame: np.ndarray, contour: Optional[np.ndarray], bbox: Dict[str, int], status: str, disease: str, yellow_pct: float
     ) -> str:
         output = frame.copy()
         color = (
@@ -164,20 +259,20 @@ class TeaLeafDetector:
 
         cv2.putText(
             output,
-            f"STATUS: {status} | {disease}",
+            f"DIAGNOSIS: {status} | {disease}",
             (15, fh - 40),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.65,
+            0.62,
             color,
             2,
             cv2.LINE_AA,
         )
         cv2.putText(
             output,
-            f"ENGINE: {engine_used} | YELLOW: {yellow_pct:.1f}%",
+            f"OPENCV MULTI-SPECTRUM HSV ENGINE | YELLOW: {yellow_pct:.1f}%",
             (15, fh - 15),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
+            0.48,
             (220, 220, 220),
             1,
             cv2.LINE_AA,
@@ -190,7 +285,8 @@ class TeaLeafDetector:
     @classmethod
     def detect_frame(cls, frame: np.ndarray) -> Dict[str, Any]:
         """
-        Processes frame using Hybrid YOLOv8 ONNX Neural Network + OpenCV HSV Color Segmentation.
+        Entry point for single-frame vision prediction.
+        Processes frame and returns structured 7-disease diagnosis JSON.
         """
         if frame is None or frame.size == 0:
             return {
@@ -204,19 +300,10 @@ class TeaLeafDetector:
                 "engine_used": "None",
             }
 
-        # Step 1: Attempt YOLOv8 ONNX Deep Learning Inference first
-        yolo_res = cls.yolo_engine.detect(frame)
-        if yolo_res is not None:
-            yolo_res["annotated_image"] = cls.render_annotated_frame(
-                frame, None, yolo_res["bounding_box"], yolo_res["status"], yolo_res["disease"], yolo_res["yellow_percentage"], "YOLOv8 ONNX Neural Net"
-            )
-            return yolo_res
-
-        # Step 2: High-Precision OpenCV Multi-Spectrum HSV Segmentation Engine
         blurred = cv2.GaussianBlur(frame, (5, 5), 0)
         hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
 
-        leaf_mask, green_mask, yellow_mask, brown_mask = cls.get_leaf_mask(hsv)
+        leaf_mask, green_mask, yellow_mask, brown_mask, black_mask, white_mask = cls.get_pathology_masks(hsv)
         contour = cls.get_largest_valid_contour(leaf_mask)
 
         if contour is None:
@@ -228,17 +315,17 @@ class TeaLeafDetector:
                 "recommendation": "Hold a clear green tea leaf in front of the lens.",
                 "bounding_box": {"x": 0, "y": 0, "width": 0, "height": 0},
                 "annotated_image": None,
-                "engine_used": "OpenCV HSV Segmentation",
+                "engine_used": "OpenCV Multi-Spectrum Engine",
             }
 
-        status, disease, yellow_pct, brown_pct, confidence, recommendation = cls.diagnose(
-            contour, yellow_mask, brown_mask, frame.shape
+        status, disease, yellow_pct, brown_pct, confidence, recommendation = cls.diagnose_comprehensive(
+            contour, yellow_mask, brown_mask, black_mask, white_mask, frame.shape
         )
         x, y, w, h = cv2.boundingRect(contour)
         bbox = {"x": int(x), "y": int(y), "width": int(w), "height": int(h)}
 
-        engine_name = "Hybrid (OpenCV HSV + Contour Solidity)"
-        annotated_base64 = cls.render_annotated_frame(frame, contour, bbox, status, disease, yellow_pct, engine_name)
+        engine_name = "OpenCV Multi-Spectrum Pathology Engine"
+        annotated_base64 = cls.render_annotated_frame(frame, contour, bbox, status, disease, yellow_pct)
 
         return {
             "status": status,

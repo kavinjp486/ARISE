@@ -1,26 +1,39 @@
 """
-YOLOv8 Deep Learning Vision Module for Tea Leaf & Pathology Detection
+YOLOv8 Multi-Class Deep Learning Module for Tea Leaf Pathology
 
-Provides ONNX Runtime neural network inference for sub-centimeter apical shoot
-localization and disease classification (Blister Blight, Chlorosis, Healthy Shoot).
-Includes NMS (Non-Maximum Suppression) and fallback handling.
+Supports 7 tea leaf disease & damage classes:
+0: Anthracnose
+1: Leaf Blight
+2: Blight Disease
+3: Tea Wheel Spot Disease
+4: Tea White Star Disease
+5: Tea Coal Disease
+6: Mechanical Damage
+7: Healthy Apical Shoot
+8: Chlorosis Yellowing
 """
 
 import os
 import cv2
 import numpy as np
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional
 
 
 class YOLOTeaLeafDetector:
     """
-    YOLOv8 ONNX Neural Network Inference Engine for Tea Estate Harvest & Health.
+    YOLOv8 ONNX Neural Network Inference Engine for 7-Class Tea Estate Pathology.
     """
 
     CLASS_LABELS = {
-        0: ("Healthy Apical Shoot", "HEALTHY", "Optimal flush density — Selective pluck active."),
-        1: ("Chlorosis Yellowing", "WARNING", "Early yellowing detected — Schedule harvest within 48h."),
-        2: ("Blister Blight Pathology", "DISEASED", "Apply copper oxychloride bio-spray within 24h."),
+        0: ("Anthracnose", "DISEASED", "Multiple dark circular spots — Apply carbendazim spray treatment."),
+        1: ("Leaf Blight", "DISEASED", "Large margin scorch lesion — Remove heavily damaged leaves."),
+        2: ("Blight Disease", "DISEASED", "Combined yellow chlorosis + tip necrosis — Isolate sector."),
+        3: ("Tea Wheel Spot Disease", "DISEASED", "Concentric target spot lesions — Apply protective fungicide."),
+        4: ("Tea White Star Disease", "DISEASED", "White pinpoint lesions — Apply systemic copper fungicide."),
+        5: ("Tea Coal Disease", "DISEASED", "Sooty black mold — Prune dense foliage and spray bio-fungicide."),
+        6: ("Mechanical Damage", "WARNING", "Torn or chewed leaf margin — Inspect for pest or mechanical shear issues."),
+        7: ("Healthy Leaf", "HEALTHY", "Optimal flush density — Ready for selective plucking."),
+        8: ("Chlorosis Yellowing", "WARNING", "Early yellowing — Schedule harvest within 48h."),
     }
 
     MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "weights", "yolov8_tea_leaf.onnx")
@@ -32,9 +45,6 @@ class YOLOTeaLeafDetector:
         self._init_onnx_runtime()
 
     def _init_onnx_runtime(self):
-        """
-        Attempts to initialize ONNX Runtime inference session if weights exist.
-        """
         if os.path.exists(self.MODEL_PATH):
             try:
                 import onnxruntime as ort
@@ -49,9 +59,6 @@ class YOLOTeaLeafDetector:
         return self.session is not None
 
     def preprocess(self, frame: np.ndarray, target_size: Tuple[int, int] = (640, 640)) -> Tuple[np.ndarray, float, Tuple[int, int]]:
-        """
-        Letterbox preprocess frame to 640x640 tensor format.
-        """
         h, w = frame.shape[:2]
         scale = min(target_size[0] / h, target_size[1] / w)
         nh, nw = int(h * scale), int(w * scale)
@@ -62,7 +69,6 @@ class YOLOTeaLeafDetector:
         left = (target_size[1] - nw) // 2
         padded[top:top + nh, left:left + nw] = resized
 
-        # Normalize BGR to RGB 0..1 float32 tensor NCHW
         rgb = cv2.cvtColor(padded, cv2.COLOR_BGR2RGB)
         tensor = rgb.astype(np.float32) / 255.0
         tensor = np.transpose(tensor, (2, 0, 1))
@@ -71,27 +77,16 @@ class YOLOTeaLeafDetector:
         return tensor, scale, (left, top)
 
     def detect(self, frame: np.ndarray, conf_threshold: float = 0.45) -> Optional[Dict[str, Any]]:
-        """
-        Runs neural network inference on input image matrix.
-        Returns top detection result or None if unavailable.
-        """
         if not self.is_available or frame is None or frame.size == 0:
             return None
 
         try:
             tensor, scale, (pad_x, pad_y) = self.preprocess(frame)
             outputs = self.session.run(self.output_names, {self.input_name: tensor})
-            predictions = outputs[0]  # Shape: [1, 7, 8400]
+            predictions = outputs[0]
 
-            # Parse bounding boxes, confidence scores, and class IDs
-            boxes = []
-            confidences = []
-            class_ids = []
-
-            # Extract best confidence box
-            # Simulated parsing logic for ONNX tensor array
             if len(predictions.shape) == 3:
-                preds = predictions[0].T  # Transpose to [8400, 7]
+                preds = predictions[0].T
                 scores = np.max(preds[:, 4:], axis=1)
                 best_idx = np.argmax(scores)
 
@@ -99,7 +94,6 @@ class YOLOTeaLeafDetector:
                     cls_id = int(np.argmax(preds[best_idx, 4:]))
                     cx, cy, bw, bh = preds[best_idx, :4]
 
-                    # Scale back to original frame dimensions
                     orig_h, orig_w = frame.shape[:2]
                     x = max(0, int((cx - pad_x - bw / 2) / scale))
                     y = max(0, int((cy - pad_y - bh / 2) / scale))
@@ -117,7 +111,7 @@ class YOLOTeaLeafDetector:
                         "confidence": int(scores[best_idx] * 100),
                         "recommendation": rec,
                         "bounding_box": {"x": x, "y": y, "width": w, "height": h},
-                        "engine_used": "YOLOv8_ONNX_DeepLearning",
+                        "engine_used": "YOLOv8 7-Class Deep Learning",
                     }
         except Exception:
             return None

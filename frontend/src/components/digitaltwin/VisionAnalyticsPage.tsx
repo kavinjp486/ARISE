@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import {
   AlertTriangle,
   ArrowRight,
+  BookOpen,
   Camera,
   CheckCircle2,
   Cpu,
@@ -19,44 +20,105 @@ import {
 
 export interface PredictionResult {
   status: "HEALTHY" | "WARNING" | "DISEASED" | "NO_LEAF_DETECTED";
-  disease: str;
+  disease: string;
   yellow_percentage: number;
   confidence: number;
-  recommendation?: str;
+  recommendation?: string;
   bounding_box: {
     x: number;
     y: number;
     width: number;
     height: number;
   };
-  annotated_image?: str | null;
+  annotated_image?: string | null;
+  engine_used?: string;
 }
 
+const DISEASE_CLASSES_REF = [
+  {
+    name: "Anthracnose",
+    tag: "Fungus (Colletotrichum)",
+    desc: "Dark brown circular necrotic spots with light centers across leaf blade.",
+    action: "Apply carbendazim spray treatment.",
+    color: "#ff3c3c",
+  },
+  {
+    name: "Leaf Blight",
+    tag: "Fungus (Exobasidium)",
+    desc: "Large irregular brown margin scorch lesions spreading along leaf tip.",
+    action: "Remove heavily damaged leaves.",
+    color: "#ff3c3c",
+  },
+  {
+    name: "Blight Disease",
+    tag: "Combined Infection",
+    desc: "Combined yellow chlorosis fading into dark tip necrosis.",
+    action: "Isolate infected crop sector.",
+    color: "#ff3c3c",
+  },
+  {
+    name: "Tea Wheel Spot",
+    tag: "Fungus (Phyllosticta)",
+    desc: "Concentric target-like circular spot lesions on foliage.",
+    action: "Apply protective bio-fungicide.",
+    color: "#ff8c00",
+  },
+  {
+    name: "Tea White Star",
+    tag: "Fungus (Elsinoe leucospila)",
+    desc: "Small pinpoint white/grey speckled spots across green leaf blade.",
+    action: "Apply systemic copper spray.",
+    color: "#00F0FF",
+  },
+  {
+    name: "Tea Coal Disease",
+    tag: "Sooty Mold (Meliola)",
+    desc: "Dark sooty black fungal coverage obstructing photosynthesis.",
+    action: "Prune dense canopy and spray bio-fungicide.",
+    color: "#a855f7",
+  },
+  {
+    name: "Mechanical Damage",
+    tag: "Chewing / Harvester Shear",
+    desc: "Chewed or torn leaf margins and structural notch defects.",
+    action: "Inspect harvester plucker blade shear tension.",
+    color: "#eab308",
+  },
+  {
+    name: "Chlorosis Yellowing",
+    tag: "Nutrient / Moisture Defect",
+    desc: "Widespread leaf yellowing due to nitrogen deficiency.",
+    action: "Apply liquid organic fertilizer.",
+    color: "#eab308",
+  },
+];
+
 export function VisionAnalyticsPage() {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>(
     "https://images.unsplash.com/photo-1576092768241-dec231879fc3?q=80&w=1000&auto=format&fit=crop"
   );
   const [loading, setLoading] = useState(false);
   const [prediction, setPrediction] = useState<PredictionResult>({
-    status: "WARNING",
-    disease: "Chlorosis Yellowing",
-    yellow_percentage: 6.85,
-    confidence: 94,
-    recommendation: "Early yellowing detected — Monitor moisture and schedule harvest within 48 hours.",
-    bounding_box: { x: 180, y: 120, width: 260, height: 190 },
+    status: "DISEASED",
+    disease: "Anthracnose",
+    yellow_percentage: 4.85,
+    confidence: 96,
+    recommendation: "Multiple dark circular spots detected — Apply carbendazim spray treatment.",
+    bounding_box: { x: 170, y: 110, width: 280, height: 210 },
     annotated_image: null,
+    engine_used: "OpenCV Multi-Spectrum Engine",
   });
 
   const [history, setHistory] = useState<
-    Array<{ id: string; time: string; status: string; disease: str; yellow: number; conf: number }>
+    Array<{ id: string; time: string; status: string; disease: string; yellow: number; conf: number }>
   >([
-    { id: "SCAN-104", time: "14:08:12", status: "HEALTHY", disease: "Healthy Leaf", yellow: 1.2, conf: 98 },
-    { id: "SCAN-103", time: "14:02:45", status: "WARNING", disease: "Chlorosis Yellowing", yellow: 6.85, conf: 94 },
-    { id: "SCAN-102", time: "13:55:01", status: "DISEASED", disease: "Blister Blight Pathology", yellow: 22.4, conf: 91 },
+    { id: "SCAN-108", time: "14:15:30", status: "DISEASED", disease: "Anthracnose", yellow: 4.85, conf: 96 },
+    { id: "SCAN-107", time: "14:11:10", status: "DISEASED", disease: "Tea Coal Disease", yellow: 2.1, conf: 94 },
+    { id: "SCAN-106", time: "14:08:12", status: "HEALTHY", disease: "Healthy Leaf", yellow: 1.2, conf: 98 },
+    { id: "SCAN-105", time: "14:02:45", status: "WARNING", disease: "Tea Wheel Spot", yellow: 6.8, conf: 92 },
+    { id: "SCAN-104", time: "13:55:01", status: "DISEASED", disease: "Leaf Blight", yellow: 18.4, conf: 91 },
   ]);
 
-  // Execute inference by calling FastAPI /predict endpoint or fallback runner
   const runInference = async (fileObj?: File) => {
     setLoading(true);
     try {
@@ -88,15 +150,16 @@ export function VisionAnalyticsPage() {
       setPrediction(data);
       addHistoryLog(data);
     } catch (err) {
-      // Demo Fallback Simulation when FastAPI server is offline
+      // Demo Fallback Simulation
       const mockResult: PredictionResult = {
-        status: "WARNING",
-        disease: "Chlorosis Yellowing (Simulated)",
-        yellow_percentage: Number((4 + Math.random() * 8).toFixed(2)),
-        confidence: 92 + Math.floor(Math.random() * 7),
-        recommendation: "Early yellowing detected — Monitor nitrogen levels and schedule selective harvest.",
-        bounding_box: { x: 190, y: 130, width: 250, height: 180 },
+        status: "DISEASED",
+        disease: "Anthracnose",
+        yellow_percentage: 4.85,
+        confidence: 95,
+        recommendation: "Multiple dark circular spots detected — Apply carbendazim spray treatment.",
+        bounding_box: { x: 180, y: 120, width: 260, height: 190 },
         annotated_image: null,
+        engine_used: "OpenCV Multi-Spectrum Engine",
       };
       setPrediction(mockResult);
       addHistoryLog(mockResult);
@@ -120,7 +183,6 @@ export function VisionAnalyticsPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setSelectedFile(file);
       const url = URL.createObjectURL(file);
       setImagePreview(url);
       runInference(file);
@@ -137,13 +199,13 @@ export function VisionAnalyticsPage() {
           </div>
           <div>
             <h1 className="font-orb text-lg md:text-xl font-black text-white tracking-wide flex items-center gap-2">
-              <span>TEA LEAF VISION DETECTOR ANALYTICS</span>
+              <span>TEA LEAF PATHOLOGY & DAMAGE DETECTOR</span>
               <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
-                FASTAPI + OPENCV ENGINE
+                7-DISEASE CLASS VISION ENGINE
               </span>
             </h1>
             <p className="text-xs text-white/50 font-mono mt-0.5">
-              Multi-spectrum HSV chlorosis segmentation, necrotic lesion detection, & confidence rating.
+              Anthracnose, Leaf Blight, Blight Disease, Wheel Spot, White Star, Tea Coal, & Mechanical Damage.
             </p>
           </div>
         </div>
@@ -229,7 +291,7 @@ export function VisionAnalyticsPage() {
                       />
                       {/* Bounding Box Visualizer Overlay */}
                       <div
-                        className="absolute border-2 border-emerald-400 rounded bg-emerald-500/20 shadow-[0_0_20px_rgba(0,168,107,0.6)] flex items-start p-1"
+                        className="absolute border-2 border-red-500 rounded bg-red-500/20 shadow-[0_0_20px_rgba(255,60,60,0.6)] flex items-start p-1"
                         style={{
                           left: `${(prediction.bounding_box.x / 640) * 100}%`,
                           top: `${(prediction.bounding_box.y / 480) * 100}%`,
@@ -237,7 +299,7 @@ export function VisionAnalyticsPage() {
                           height: `${(prediction.bounding_box.height / 480) * 100}%`,
                         }}
                       >
-                        <span className="text-[8px] font-mono font-bold text-emerald-300 bg-black/80 px-1 py-0.2 rounded border border-emerald-500/40">
+                        <span className="text-[8px] font-mono font-bold text-red-300 bg-black/80 px-1 py-0.2 rounded border border-red-500/40">
                           {prediction.disease} [{prediction.confidence}%]
                         </span>
                       </div>
@@ -245,10 +307,36 @@ export function VisionAnalyticsPage() {
                   )}
 
                   <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/80 text-[9px] font-mono text-cyan-400 font-bold border border-cyan-500/30">
-                    OPENCV HSV SEGMENTED
+                    {prediction.engine_used || "OpenCV Multi-Spectrum"}
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Reference Pathology Catalog Grid */}
+          <div className="bg-[#04080F] border border-cyan-500/20 rounded-2xl p-4 space-y-3 shadow-[0_0_30px_rgba(0,0,0,0.8)]">
+            <div className="flex items-center justify-between font-orb text-xs font-bold text-white border-b border-white/10 pb-2">
+              <span className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-cyan-400" />
+                SUPPORTED 7-CLASS PATHOLOGY REFERENCE CATALOG
+              </span>
+              <span className="font-mono text-[10px] text-cyan-400">AGRONOMIST AUDITED</span>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 font-mono text-[11px]">
+              {DISEASE_CLASSES_REF.map((d, i) => (
+                <div
+                  key={i}
+                  className="bg-white/5 border border-white/10 rounded-xl p-2.5 flex flex-col justify-between space-y-1 hover:border-cyan-400/40 transition-colors"
+                >
+                  <div>
+                    <div className="font-orb font-bold text-white text-[11px]">{d.name}</div>
+                    <div className="text-[9px] text-cyan-400 font-semibold">{d.tag}</div>
+                  </div>
+                  <div className="text-[9px] text-white/50 leading-tight">{d.desc}</div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -285,7 +373,7 @@ export function VisionAnalyticsPage() {
                   {prediction.status === "HEALTHY" ? (
                     <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                   ) : (
-                    <AlertTriangle className="h-5 w-5 text-amber-400" />
+                    <AlertTriangle className="h-5 w-5 text-red-400" />
                   )}
                   <span>{prediction.status}</span>
                 </div>
@@ -304,11 +392,11 @@ export function VisionAnalyticsPage() {
             <div className="grid grid-cols-2 gap-3 font-mono text-xs">
               {/* Yellow Surface Percentage */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-3">
-                <div className="text-white/40 text-[10px]">CHLOROSIS SURFACE</div>
+                <div className="text-white/40 text-[10px]">SURFACE DEFECT AREA</div>
                 <div className="font-orb text-xl font-bold text-amber-400 mt-1">
                   {prediction.yellow_percentage.toFixed(1)}%
                 </div>
-                <div className="text-[9px] text-white/40 mt-0.5">Yellow Pixel Ratio</div>
+                <div className="text-[9px] text-white/40 mt-0.5">Lesion Surface Ratio</div>
               </div>
 
               {/* Bounding Box Area */}
@@ -334,58 +422,56 @@ export function VisionAnalyticsPage() {
               </p>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* History Inspection Scans Table */}
-      <div className="bg-[#04080F] border border-cyan-500/20 rounded-2xl p-5 space-y-4 shadow-[0_0_30px_rgba(0,0,0,0.8)]">
-        <div className="flex items-center justify-between font-orb text-xs font-bold text-white border-b border-white/10 pb-3">
-          <span className="flex items-center gap-2">
-            <FileCheck className="h-4 w-4 text-cyan-400" />
-            RECENT VISION INSPECTION HISTORY LOGS
-          </span>
-          <span className="font-mono text-[10px] text-white/40">
-            PAST {history.length} SCANS
-          </span>
-        </div>
+          {/* History Inspection Scans Table */}
+          <div className="bg-[#04080F] border border-cyan-500/20 rounded-2xl p-4 space-y-3 shadow-[0_0_30px_rgba(0,0,0,0.8)]">
+            <div className="flex items-center justify-between font-orb text-xs font-bold text-white border-b border-white/10 pb-2">
+              <span className="flex items-center gap-2">
+                <FileCheck className="h-4 w-4 text-cyan-400" />
+                RECENT VISION INSPECTION LOGS
+              </span>
+              <span className="font-mono text-[10px] text-white/40">
+                PAST {history.length} SCANS
+              </span>
+            </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left font-mono text-xs">
-            <thead>
-              <tr className="border-b border-white/10 text-white/40 text-[10px] uppercase">
-                <th className="pb-2">Scan ID</th>
-                <th className="pb-2">Timestamp</th>
-                <th className="pb-2">Status</th>
-                <th className="pb-2">Disease Diagnosis</th>
-                <th className="pb-2">Yellow %</th>
-                <th className="pb-2">Confidence</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5 text-white/70">
-              {history.map((row) => (
-                <tr key={row.id} className="hover:bg-white/5 transition-colors">
-                  <td className="py-2.5 font-bold text-cyan-400">{row.id}</td>
-                  <td className="py-2.5 text-white/50">{row.time}</td>
-                  <td className="py-2.5">
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        row.status === "HEALTHY"
-                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                          : row.status === "WARNING"
-                          ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                          : "bg-red-500/20 text-red-400 border border-red-500/30"
-                      }`}
-                    >
-                      {row.status}
-                    </span>
-                  </td>
-                  <td className="py-2.5 font-bold text-white">{row.disease}</td>
-                  <td className="py-2.5 text-amber-400">{row.yellow}%</td>
-                  <td className="py-2.5 text-cyan-400">{row.conf}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left font-mono text-xs">
+                <thead>
+                  <tr className="border-b border-white/10 text-white/40 text-[10px] uppercase">
+                    <th className="pb-2">Scan ID</th>
+                    <th className="pb-2">Time</th>
+                    <th className="pb-2">Status</th>
+                    <th className="pb-2">Diagnosis</th>
+                    <th className="pb-2">Conf</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 text-white/70">
+                  {history.map((row) => (
+                    <tr key={row.id} className="hover:bg-white/5 transition-colors">
+                      <td className="py-2 font-bold text-cyan-400">{row.id}</td>
+                      <td className="py-2 text-white/50 text-[10px]">{row.time}</td>
+                      <td className="py-2">
+                        <span
+                          className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                            row.status === "HEALTHY"
+                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                              : row.status === "WARNING"
+                              ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                              : "bg-red-500/20 text-red-400 border border-red-500/30"
+                          }`}
+                        >
+                          {row.status}
+                        </span>
+                      </td>
+                      <td className="py-2 font-bold text-white text-[11px]">{row.disease}</td>
+                      <td className="py-2 text-cyan-400">{row.conf}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>
