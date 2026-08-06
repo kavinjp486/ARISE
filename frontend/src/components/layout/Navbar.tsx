@@ -33,44 +33,40 @@ export function Navbar({ activeTab, onTabChange }: NavbarProps) {
         <div className="flex items-center gap-1.5 p-1 rounded-xl glass border border-white/10">
           <button
             onClick={() => onTabChange("landing")}
-            className={`btn-press px-3.5 py-1.5 rounded-lg text-xs font-orb font-bold flex items-center gap-1.5 transition-all ${
-              activeTab === "landing"
+            className={`btn-press px-3.5 py-1.5 rounded-lg text-xs font-orb font-bold flex items-center gap-1.5 transition-all ${activeTab === "landing"
                 ? "glass-g text-g panim-g"
                 : "text-white/50 hover:text-white"
-            }`}
+              }`}
           >
             <Home className="h-3.5 w-3.5" />
             Home
           </button>
           <button
             onClick={() => onTabChange("status")}
-            className={`btn-press px-3.5 py-1.5 rounded-lg text-xs font-orb font-bold flex items-center gap-1.5 transition-all ${
-              activeTab === "status"
+            className={`btn-press px-3.5 py-1.5 rounded-lg text-xs font-orb font-bold flex items-center gap-1.5 transition-all ${activeTab === "status"
                 ? "glass-b text-b panim-b"
                 : "text-white/50 hover:text-white"
-            }`}
+              }`}
           >
             <MapPin className="h-3.5 w-3.5" />
             Status & Map
           </button>
           <button
             onClick={() => onTabChange("data")}
-            className={`btn-press px-3.5 py-1.5 rounded-lg text-xs font-orb font-bold flex items-center gap-1.5 transition-all ${
-              activeTab === "data"
+            className={`btn-press px-3.5 py-1.5 rounded-lg text-xs font-orb font-bold flex items-center gap-1.5 transition-all ${activeTab === "data"
                 ? "glass-g text-g panim-g"
                 : "text-white/50 hover:text-white"
-            }`}
+              }`}
           >
             <Activity className="h-3.5 w-3.5" />
             Live Data
           </button>
           <button
             onClick={() => onTabChange("control")}
-            className={`btn-press px-3.5 py-1.5 rounded-lg text-xs font-orb font-bold flex items-center gap-1.5 transition-all ${
-              activeTab === "control"
+            className={`btn-press px-3.5 py-1.5 rounded-lg text-xs font-orb font-bold flex items-center gap-1.5 transition-all ${activeTab === "control"
                 ? "glass-b text-b panim-b"
                 : "text-white/50 hover:text-white"
-            }`}
+              }`}
           >
             <Gamepad2 className="h-3.5 w-3.5" />
             Controls

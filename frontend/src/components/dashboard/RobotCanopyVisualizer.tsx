@@ -38,8 +38,8 @@ export function RobotCanopyVisualizer({
               mode === "autonomous"
                 ? "info"
                 : isMoving
-                ? "success"
-                : "secondary"
+                  ? "success"
+                  : "secondary"
             }
             className="gap-1.5 capitalize"
           >
@@ -54,9 +54,8 @@ export function RobotCanopyVisualizer({
       }
     >
       <div
-        className={`relative w-full overflow-hidden rounded-xl border border-border/70 bg-[#08120e] p-4 ${
-          compact ? "h-[220px]" : "h-[320px] lg:h-[380px]"
-        }`}
+        className={`relative w-full overflow-hidden rounded-xl border border-border/70 bg-[#08120e] p-4 ${compact ? "h-[220px]" : "h-[320px] lg:h-[380px]"
+          }`}
       >
         {/* Background Grid Pattern: Tea Bush Plantation Rows */}
         <div
@@ -145,9 +144,8 @@ export function RobotCanopyVisualizer({
             {/* Robot Physical Box Body */}
             <div className="relative flex h-10 w-12 items-center justify-center rounded-lg border-2 border-emerald-400 bg-emerald-950/90 shadow-xl shadow-emerald-950/80 backdrop-blur">
               <Navigation
-                className={`h-5 w-5 text-emerald-400 transition-transform duration-300 ${
-                  isMoving ? "rotate-45" : ""
-                }`}
+                className={`h-5 w-5 text-emerald-400 transition-transform duration-300 ${isMoving ? "rotate-45" : ""
+                  }`}
               />
 
               {/* Status LED Indicator on Carriage */}

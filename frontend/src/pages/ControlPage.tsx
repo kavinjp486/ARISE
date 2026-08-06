@@ -59,9 +59,8 @@ export function ControlPage({
 
         <div className="flex items-center gap-3">
           <span
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold font-orb ${
-              isRunning ? "glass-g text-g panim-g" : "glass text-white/30"
-            }`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold font-orb ${isRunning ? "glass-g text-g panim-g" : "glass text-white/30"
+              }`}
           >
             {isRunning ? "● TELEOPERATION ACTIVE" : "○ MANUAL OVERRIDE"}
           </span>
@@ -153,21 +152,19 @@ export function ControlPage({
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setSpeedMode("normal")}
-                className={`btn-press py-2.5 rounded-xl font-orb font-bold text-xs border ${
-                  speedMode === "normal"
+                className={`btn-press py-2.5 rounded-xl font-orb font-bold text-xs border ${speedMode === "normal"
                     ? "glass-g text-g border-g"
                     : "glass text-white/40 border-white/10"
-                }`}
+                  }`}
               >
                 Normal (0.8 m/s)
               </button>
               <button
                 onClick={() => setSpeedMode("turbo")}
-                className={`btn-press py-2.5 rounded-xl font-orb font-bold text-xs border ${
-                  speedMode === "turbo"
+                className={`btn-press py-2.5 rounded-xl font-orb font-bold text-xs border ${speedMode === "turbo"
                     ? "glass-b text-b border-b"
                     : "glass text-white/40 border-white/10"
-                }`}
+                  }`}
               >
                 Turbo (1.2 m/s)
               </button>
