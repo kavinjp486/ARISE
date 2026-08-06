@@ -6,6 +6,32 @@ export type LogLevel = "info" | "success" | "warning" | "error";
 
 export type PredictionStatus = "healthy" | "disease" | "ready_harvest";
 
+export type NavTab = "landing" | "status" | "data" | "control";
+
+export interface CellData {
+  id: number;
+  row: number;
+  col: number;
+  status: "harvested" | "in-progress" | "disease" | "pending";
+}
+
+export interface Achievement {
+  id: string;
+  icon: string;
+  name: string;
+  desc: string;
+  unlocked: boolean;
+  justUnlocked?: boolean;
+}
+
+export interface LevelInfo {
+  n: number;
+  name: string;
+  min: number;
+  max: number;
+  col: string;
+}
+
 export interface StatCardData {
   id: string;
   label: string;
