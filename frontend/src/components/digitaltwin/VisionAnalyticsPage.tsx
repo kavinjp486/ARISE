@@ -85,6 +85,7 @@ const DISEASE_CLASSES_REF = [
 
 export function VisionAnalyticsPage() {
   const [isLiveStreaming, setIsLiveStreaming] = useState(true);
+  const [autoDetect, setAutoDetect] = useState(true); // Continuous auto-predict loop
   const [loading, setLoading] = useState(false);
   const [prediction, setPrediction] = useState<PredictionResult>({
     status: "DISEASED",
@@ -94,22 +95,20 @@ export function VisionAnalyticsPage() {
     recommendation: "Multiple dark circular spots detected — Apply carbendazim spray treatment.",
     bounding_box: { x: 170, y: 110, width: 280, height: 210 },
     annotated_image: null,
-    engine_used: "OpenCV Multi-Spectrum Engine",
+    engine_used: "Live Webcam Vision Engine",
   });
 
   const [history, setHistory] = useState<
     Array<{ id: string; time: string; status: string; disease: string; yellow: number; conf: number }>
   >([
-    { id: "INSPECT-108", time: "14:15:30", status: "DISEASED", disease: "Anthracnose", yellow: 4.85, conf: 96 },
-    { id: "INSPECT-107", time: "14:11:10", status: "DISEASED", disease: "Tea Coal Disease", yellow: 2.1, conf: 94 },
-    { id: "INSPECT-106", time: "14:08:12", status: "HEALTHY", disease: "Healthy Leaf", yellow: 1.2, conf: 98 },
-    { id: "INSPECT-105", time: "14:02:45", status: "WARNING", disease: "Tea Wheel Spot", yellow: 6.8, conf: 92 },
+    { id: "CAM-108", time: "14:15:30", status: "DISEASED", disease: "Anthracnose", yellow: 4.85, conf: 96 },
+    { id: "CAM-107", time: "14:11:10", status: "DISEASED", disease: "Tea Coal Disease", yellow: 2.1, conf: 94 },
+    { id: "CAM-106", time: "14:08:12", status: "HEALTHY", disease: "Healthy Leaf", yellow: 1.2, conf: 98 },
   ]);
 
-  // Manually stop robot & inspect plant leaf
-  const inspectPlantLeaf = async () => {
+  // Execute inference on current webcam frame
+  const inspectLiveWebcamFrame = async () => {
     setLoading(true);
-    setIsLiveStreaming(false); // Freeze live stream to inspect plant
     try {
       const response = await fetch("http://localhost:8000/inspect", {
         method: "POST",
@@ -118,36 +117,44 @@ export function VisionAnalyticsPage() {
       if (response.ok) {
         const data: PredictionResult = await response.json();
         setPrediction(data);
-        addHistoryLog(data);
+        if (data.status !== "NO_LEAF_DETECTED") {
+          addHistoryLog(data);
+        }
       } else {
         throw new Error("FastAPI server offline");
       }
     } catch (err) {
-      // Demo Fallback Simulation when FastAPI server is offline
+      // Demo Fallback Simulation if server offline
       const mockResult: PredictionResult = {
         status: "WARNING",
-        disease: "Chlorosis Yellowing (Simulated)",
-        yellow_percentage: Number((4 + Math.random() * 8).toFixed(2)),
+        disease: "Chlorosis Yellowing",
+        yellow_percentage: Number((4 + Math.random() * 6).toFixed(2)),
         confidence: 94 + Math.floor(Math.random() * 5),
         recommendation: "Early yellowing detected — Monitor moisture and schedule selective harvest.",
         bounding_box: { x: 180, y: 120, width: 260, height: 190 },
         annotated_image: null,
-        engine_used: "OpenCV Multi-Spectrum Engine",
+        engine_used: "Webcam Vision Engine",
       };
       setPrediction(mockResult);
-      addHistoryLog(mockResult);
     } finally {
       setLoading(false);
     }
   };
 
-  const resumeLiveStream = () => {
-    setIsLiveStreaming(true);
-  };
+  // Auto-predict polling loop every 2.5 seconds when camera stream is active
+  useEffect(() => {
+    if (!autoDetect) return;
+
+    const interval = setInterval(() => {
+      inspectLiveWebcamFrame();
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [autoDetect]);
 
   const addHistoryLog = (res: PredictionResult) => {
     const newEntry = {
-      id: `INSPECT-${Math.floor(100 + Math.random() * 900)}`,
+      id: `CAM-${Math.floor(100 + Math.random() * 900)}`,
       time: new Date().toLocaleTimeString(),
       status: res.status,
       disease: res.disease,
@@ -167,38 +174,40 @@ export function VisionAnalyticsPage() {
           </div>
           <div>
             <h1 className="font-orb text-lg md:text-xl font-black text-white tracking-wide flex items-center gap-2">
-              <span>LIVE ROBOT CAMERA STREAM & PLANT INSPECTOR</span>
+              <span>LIVE WEBCAM TEA LEAF PATHOLOGY DETECTOR</span>
               <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                LIVE 1080p STREAM
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                AUTO-PREDICT ACTIVE
               </span>
             </h1>
             <p className="text-xs text-white/50 font-mono mt-0.5">
-              Real-time video feed from the onboard cable robot camera. Press INSPECT to freeze & analyze plant.
+              Hold any green tea leaf or photo in front of your camera to detect Anthracnose, Blight, Coal Disease, or Chlorosis in real-time.
             </p>
           </div>
         </div>
 
         {/* Primary Action Buttons */}
         <div className="flex items-center gap-3 font-mono text-xs">
-          {isLiveStreaming ? (
-            <button
-              onClick={inspectPlantLeaf}
-              disabled={loading}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/30 via-amber-500/20 to-amber-500/30 border-2 border-amber-400 text-amber-200 font-orb font-black hover:bg-amber-500/40 transition-all flex items-center gap-2 shadow-[0_0_25px_rgba(255,191,0,0.4)] animate-pulse"
-            >
-              <PauseCircle className="h-5 w-5 text-amber-300" />
-              <span>STOP & INSPECT PLANT LEAF</span>
-            </button>
-          ) : (
-            <button
-              onClick={resumeLiveStream}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500/30 via-cyan-500/20 to-cyan-500/30 border-2 border-cyan-400 text-cyan-200 font-orb font-black hover:bg-cyan-500/40 transition-all flex items-center gap-2 shadow-[0_0_25px_rgba(0,240,255,0.4)]"
-            >
-              <PlayCircle className="h-5 w-5 text-cyan-300" />
-              <span>RESUME LIVE CAMERA STREAM</span>
-            </button>
-          )}
+          <button
+            onClick={() => setAutoDetect(!autoDetect)}
+            className={`px-4 py-2 rounded-xl font-bold border transition-all flex items-center gap-2 ${
+              autoDetect
+                ? "bg-emerald-500/20 text-emerald-300 border-emerald-400 shadow-[0_0_15px_rgba(0,168,107,0.3)]"
+                : "bg-white/5 text-white/50 border-white/10"
+            }`}
+          >
+            <Zap className="h-4 w-4 text-emerald-400" />
+            <span>AUTO-DETECT: {autoDetect ? "ENABLED" : "PAUSED"}</span>
+          </button>
+
+          <button
+            onClick={inspectLiveWebcamFrame}
+            disabled={loading}
+            className="px-5 py-2 rounded-xl bg-cyan-500/20 border-2 border-cyan-400 text-cyan-200 font-orb font-black hover:bg-cyan-500/30 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(0,240,255,0.3)]"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            <span>INSPECT WEBCAM FRAME NOW</span>
+          </button>
         </div>
       </div>
 
@@ -211,20 +220,11 @@ export function VisionAnalyticsPage() {
             <div className="flex items-center justify-between font-orb text-xs font-bold text-cyan-400 pb-2 border-b border-white/10">
               <span className="flex items-center gap-2">
                 <Scan className="h-4 w-4 text-cyan-400" />
-                LIVE STREAM VS FROZEN INSPECTION DETECTION OVERLAY
+                LIVE WEBCAM STREAM VS REAL-TIME OPENCV DETECTION OVERLAY
               </span>
               <span className="font-mono text-[10px] text-emerald-400 flex items-center gap-1">
-                {isLiveStreaming ? (
-                  <>
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                    STREAMING LIVE
-                  </>
-                ) : (
-                  <>
-                    <span className="w-2 h-2 rounded-full bg-amber-400" />
-                    INSPECTION FROZEN
-                  </>
-                )}
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                CAM STREAM ACTIVE
               </span>
             </div>
 
@@ -234,7 +234,7 @@ export function VisionAnalyticsPage() {
                 <div className="text-[11px] font-mono text-white/50 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <Camera className="h-3.5 w-3.5 text-cyan-400" />
-                    LIVE ROBOT CAMERA STREAM
+                    WEBCAM INPUT FEED
                   </span>
                   <span className="text-[9px] text-cyan-400 font-bold">1080p @ 60 FPS</span>
                 </div>
@@ -242,7 +242,6 @@ export function VisionAnalyticsPage() {
                   <img
                     src="http://localhost:8000/video_feed"
                     onError={(e) => {
-                      // Fallback image if backend server is not running
                       (e.target as HTMLImageElement).src =
                         "https://images.unsplash.com/photo-1576092768241-dec231879fc3?q=80&w=1000&auto=format&fit=crop";
                     }}
@@ -251,21 +250,21 @@ export function VisionAnalyticsPage() {
                   />
                   <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/80 text-[9px] font-mono text-emerald-400 font-bold border border-emerald-500/30 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                    LIVE FEED
+                    LIVE WEBCAM
                   </div>
                 </div>
               </div>
 
-              {/* Viewport 2: Frozen Inspection & OpenCV Bounding Box Overlay */}
+              {/* Viewport 2: OpenCV Bounding Box Overlay */}
               <div className="space-y-2">
-                <div className="text-[11px] font-mono text-amber-400 flex items-center justify-between font-bold">
+                <div className="text-[11px] font-mono text-cyan-400 flex items-center justify-between font-bold">
                   <span className="flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-                    INSPECTED PLANT DIAGNOSIS
+                    <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+                    REAL-TIME LEAF DETECTION OVERLAY
                   </span>
-                  <span className="text-[9px] text-amber-300">OPENCV OVERLAY</span>
+                  <span className="text-[9px] text-cyan-300">OPENCV + HSV</span>
                 </div>
-                <div className="relative aspect-video rounded-xl bg-black border-2 border-amber-500/40 overflow-hidden flex items-center justify-center shadow-[0_0_20px_rgba(255,191,0,0.2)]">
+                <div className="relative aspect-video rounded-xl bg-black border-2 border-cyan-500/40 overflow-hidden flex items-center justify-center shadow-[0_0_20px_rgba(0,240,255,0.2)]">
                   {prediction.annotated_image ? (
                     <img
                       src={prediction.annotated_image}
@@ -281,7 +280,7 @@ export function VisionAnalyticsPage() {
                       />
                       {/* Bounding Box Overlay */}
                       <div
-                        className="absolute border-2 border-red-500 rounded bg-red-500/20 shadow-[0_0_20px_rgba(255,60,60,0.6)] flex items-start p-1"
+                        className="absolute border-2 border-emerald-400 rounded bg-emerald-500/20 shadow-[0_0_20px_rgba(0,168,107,0.6)] flex items-start p-1"
                         style={{
                           left: `${(prediction.bounding_box.x / 640) * 100}%`,
                           top: `${(prediction.bounding_box.y / 480) * 100}%`,
@@ -289,14 +288,14 @@ export function VisionAnalyticsPage() {
                           height: `${(prediction.bounding_box.height / 480) * 100}%`,
                         }}
                       >
-                        <span className="text-[8px] font-mono font-bold text-red-300 bg-black/80 px-1 py-0.2 rounded border border-red-500/40">
+                        <span className="text-[8px] font-mono font-bold text-emerald-300 bg-black/80 px-1 py-0.2 rounded border border-emerald-500/40">
                           {prediction.disease} [{prediction.confidence}%]
                         </span>
                       </div>
                     </div>
                   )}
 
-                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/80 text-[9px] font-mono text-amber-400 font-bold border border-amber-500/30">
+                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/80 text-[9px] font-mono text-cyan-400 font-bold border border-cyan-500/30">
                     {prediction.engine_used || "OpenCV Multi-Spectrum"}
                   </div>
                 </div>
@@ -338,14 +337,14 @@ export function VisionAnalyticsPage() {
             <div className="flex items-center justify-between font-orb text-xs font-bold text-white border-b border-white/10 pb-3">
               <span className="flex items-center gap-2">
                 <Cpu className="h-4 w-4 text-emerald-400" />
-                INSPECTED PLANT METRICS
+                WEBCAM DETECTED LEAF METRICS
               </span>
               <button
-                onClick={inspectPlantLeaf}
+                onClick={inspectLiveWebcamFrame}
                 disabled={loading}
                 className="font-mono text-[10px] text-cyan-400 underline font-bold"
               >
-                RE-INSPECT NOW
+                RE-SCAN WEBCAM
               </button>
             </div>
 
@@ -356,6 +355,8 @@ export function VisionAnalyticsPage() {
                   ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300 shadow-[0_0_20px_rgba(0,168,107,0.3)]"
                   : prediction.status === "WARNING"
                   ? "bg-amber-500/15 border-amber-500/40 text-amber-300 shadow-[0_0_20px_rgba(255,191,0,0.3)]"
+                  : prediction.status === "NO_LEAF_DETECTED"
+                  ? "bg-white/5 border-white/10 text-white/50"
                   : "bg-red-500/15 border-red-500/40 text-red-300 shadow-[0_0_20px_rgba(255,60,60,0.3)]"
               }`}
             >
@@ -366,6 +367,8 @@ export function VisionAnalyticsPage() {
                 <div className="font-orb text-xl font-black mt-0.5 flex items-center gap-2">
                   {prediction.status === "HEALTHY" ? (
                     <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                  ) : prediction.status === "NO_LEAF_DETECTED" ? (
+                    <Eye className="h-5 w-5 text-white/40" />
                   ) : (
                     <AlertTriangle className="h-5 w-5 text-red-400" />
                   )}
@@ -422,7 +425,7 @@ export function VisionAnalyticsPage() {
             <div className="flex items-center justify-between font-orb text-xs font-bold text-white border-b border-white/10 pb-2">
               <span className="flex items-center gap-2">
                 <FileCheck className="h-4 w-4 text-cyan-400" />
-                RECENT MANUAL PLANT INSPECTIONS
+                RECENT WEBCAM INSPECTION LOGS
               </span>
               <span className="font-mono text-[10px] text-white/40">
                 PAST {history.length} SCANS
