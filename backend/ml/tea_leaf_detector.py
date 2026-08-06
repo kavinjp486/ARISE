@@ -18,7 +18,7 @@ class TeaLeafDetector:
     """
 
     # Multi-spectrum HSV boundaries for leaf tissue & pathology lesions
-    GREEN_LOWER = np.array([12, 10, 10])
+    GREEN_LOWER = np.array([10, 10, 10])
     GREEN_UPPER = np.array([115, 255, 255])
 
     YELLOW_LOWER = np.array([8, 20, 20])
@@ -35,7 +35,7 @@ class TeaLeafDetector:
     WHITE_LOWER = np.array([0, 0, 160])
     WHITE_UPPER = np.array([180, 60, 255])
 
-    MIN_LEAF_PX = 250
+    MIN_LEAF_PX = 200
 
     @classmethod
     def get_pathology_masks(cls, hsv: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -117,7 +117,7 @@ class TeaLeafDetector:
         confidence = min(99, max(90, int(92 + (leaf_px / (h * w)) * 20)))
 
         # Evaluate Healthy vs Diseased criteria
-        if defect_pct >= 3.0 or brown_px > 50 or black_px > 50:
+        if defect_pct >= 2.0 or brown_px > 30 or black_px > 30:
             specific_pathology = (
                 "Anthracnose Lesions" if brown_px > yellow_px
                 else "Chlorosis Yellowing" if yellow_px > 100
@@ -179,7 +179,7 @@ class TeaLeafDetector:
 
         # Bottom tactical HUD status bar on live video stream
         fh, fw = output.shape[:2]
-        banner_h = 50
+        banner_h = 45
         overlay = output.copy()
         cv2.rectangle(overlay, (0, fh - banner_h), (fw, fh), (10, 15, 20), -1)
         cv2.addWeighted(overlay, 0.85, output, 0.15, 0, output)
@@ -188,7 +188,7 @@ class TeaLeafDetector:
         cv2.putText(
             output,
             status_text,
-            (15, fh - 18),
+            (15, fh - 15),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.55,
             color,
@@ -223,7 +223,7 @@ class TeaLeafDetector:
         if contour is None:
             return {
                 "status": "NO_LEAF_DETECTED",
-                "disease": "No leaf detected in camera view",
+                "disease": "Searching for leaf...",
                 "yellow_percentage": 0.0,
                 "confidence": 0,
                 "recommendation": "Hold any tea leaf or leaf photo in front of camera lens.",
