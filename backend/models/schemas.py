@@ -42,7 +42,9 @@ class VisionDetectionResponse(BaseModel):
     disease: str = Field(..., description="Disease diagnosis string")
     yellow_percentage: float = Field(..., description="Chlorosis yellowing surface percentage")
     confidence: int = Field(..., description="Detection confidence score (0-100)")
+    recommendation: Optional[str] = Field("No action required", description="Actionable agronomist recommendation")
     bounding_box: BoundingBoxSchema = Field(..., description="Localization bounding box")
+    annotated_image: Optional[str] = Field(None, description="Base64 encoded PNG annotated frame with detection overlays")
 
 class PredictionData(BaseModel):
     primaryLabel: str = Field(..., description="Primary classification e.g. 'Ready for Harvest'")
