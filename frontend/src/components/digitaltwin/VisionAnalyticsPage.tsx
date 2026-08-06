@@ -1,20 +1,18 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertTriangle,
-  ArrowRight,
   BookOpen,
   Camera,
   CheckCircle2,
   Cpu,
   Eye,
   FileCheck,
-  Image as ImageIcon,
+  PauseCircle,
+  PlayCircle,
   RefreshCw,
   Scan,
-  ShieldAlert,
   Sparkles,
-  Upload,
   Zap,
 } from "lucide-react";
 
@@ -40,63 +38,53 @@ const DISEASE_CLASSES_REF = [
     tag: "Fungus (Colletotrichum)",
     desc: "Dark brown circular necrotic spots with light centers across leaf blade.",
     action: "Apply carbendazim spray treatment.",
-    color: "#ff3c3c",
   },
   {
     name: "Leaf Blight",
     tag: "Fungus (Exobasidium)",
     desc: "Large irregular brown margin scorch lesions spreading along leaf tip.",
     action: "Remove heavily damaged leaves.",
-    color: "#ff3c3c",
   },
   {
     name: "Blight Disease",
     tag: "Combined Infection",
     desc: "Combined yellow chlorosis fading into dark tip necrosis.",
     action: "Isolate infected crop sector.",
-    color: "#ff3c3c",
   },
   {
     name: "Tea Wheel Spot",
     tag: "Fungus (Phyllosticta)",
     desc: "Concentric target-like circular spot lesions on foliage.",
     action: "Apply protective bio-fungicide.",
-    color: "#ff8c00",
   },
   {
     name: "Tea White Star",
     tag: "Fungus (Elsinoe leucospila)",
     desc: "Small pinpoint white/grey speckled spots across green leaf blade.",
     action: "Apply systemic copper spray.",
-    color: "#00F0FF",
   },
   {
     name: "Tea Coal Disease",
     tag: "Sooty Mold (Meliola)",
     desc: "Dark sooty black fungal coverage obstructing photosynthesis.",
     action: "Prune dense canopy and spray bio-fungicide.",
-    color: "#a855f7",
   },
   {
     name: "Mechanical Damage",
     tag: "Chewing / Harvester Shear",
     desc: "Chewed or torn leaf margins and structural notch defects.",
     action: "Inspect harvester plucker blade shear tension.",
-    color: "#eab308",
   },
   {
     name: "Chlorosis Yellowing",
     tag: "Nutrient / Moisture Defect",
     desc: "Widespread leaf yellowing due to nitrogen deficiency.",
     action: "Apply liquid organic fertilizer.",
-    color: "#eab308",
   },
 ];
 
 export function VisionAnalyticsPage() {
-  const [imagePreview, setImagePreview] = useState<string>(
-    "https://images.unsplash.com/photo-1576092768241-dec231879fc3?q=80&w=1000&auto=format&fit=crop"
-  );
+  const [isLiveStreaming, setIsLiveStreaming] = useState(true);
   const [loading, setLoading] = useState(false);
   const [prediction, setPrediction] = useState<PredictionResult>({
     status: "DISEASED",
@@ -112,51 +100,36 @@ export function VisionAnalyticsPage() {
   const [history, setHistory] = useState<
     Array<{ id: string; time: string; status: string; disease: string; yellow: number; conf: number }>
   >([
-    { id: "SCAN-108", time: "14:15:30", status: "DISEASED", disease: "Anthracnose", yellow: 4.85, conf: 96 },
-    { id: "SCAN-107", time: "14:11:10", status: "DISEASED", disease: "Tea Coal Disease", yellow: 2.1, conf: 94 },
-    { id: "SCAN-106", time: "14:08:12", status: "HEALTHY", disease: "Healthy Leaf", yellow: 1.2, conf: 98 },
-    { id: "SCAN-105", time: "14:02:45", status: "WARNING", disease: "Tea Wheel Spot", yellow: 6.8, conf: 92 },
-    { id: "SCAN-104", time: "13:55:01", status: "DISEASED", disease: "Leaf Blight", yellow: 18.4, conf: 91 },
+    { id: "INSPECT-108", time: "14:15:30", status: "DISEASED", disease: "Anthracnose", yellow: 4.85, conf: 96 },
+    { id: "INSPECT-107", time: "14:11:10", status: "DISEASED", disease: "Tea Coal Disease", yellow: 2.1, conf: 94 },
+    { id: "INSPECT-106", time: "14:08:12", status: "HEALTHY", disease: "Healthy Leaf", yellow: 1.2, conf: 98 },
+    { id: "INSPECT-105", time: "14:02:45", status: "WARNING", disease: "Tea Wheel Spot", yellow: 6.8, conf: 92 },
   ]);
 
-  const runInference = async (fileObj?: File) => {
+  // Manually stop robot & inspect plant leaf
+  const inspectPlantLeaf = async () => {
     setLoading(true);
+    setIsLiveStreaming(false); // Freeze live stream to inspect plant
     try {
-      let data: PredictionResult;
+      const response = await fetch("http://localhost:8000/inspect", {
+        method: "POST",
+      });
 
-      if (fileObj) {
-        const formData = new FormData();
-        formData.append("file", fileObj);
-
-        const response = await fetch("http://localhost:8000/predict", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (response.ok) {
-          data = await response.json();
-        } else {
-          throw new Error("FastAPI server offline");
-        }
+      if (response.ok) {
+        const data: PredictionResult = await response.json();
+        setPrediction(data);
+        addHistoryLog(data);
       } else {
-        const response = await fetch("http://localhost:8000/predict");
-        if (response.ok) {
-          data = await response.json();
-        } else {
-          throw new Error("FastAPI server offline");
-        }
+        throw new Error("FastAPI server offline");
       }
-
-      setPrediction(data);
-      addHistoryLog(data);
     } catch (err) {
-      // Demo Fallback Simulation
+      // Demo Fallback Simulation when FastAPI server is offline
       const mockResult: PredictionResult = {
-        status: "DISEASED",
-        disease: "Anthracnose",
-        yellow_percentage: 4.85,
-        confidence: 95,
-        recommendation: "Multiple dark circular spots detected — Apply carbendazim spray treatment.",
+        status: "WARNING",
+        disease: "Chlorosis Yellowing (Simulated)",
+        yellow_percentage: Number((4 + Math.random() * 8).toFixed(2)),
+        confidence: 94 + Math.floor(Math.random() * 5),
+        recommendation: "Early yellowing detected — Monitor moisture and schedule selective harvest.",
         bounding_box: { x: 180, y: 120, width: 260, height: 190 },
         annotated_image: null,
         engine_used: "OpenCV Multi-Spectrum Engine",
@@ -168,9 +141,13 @@ export function VisionAnalyticsPage() {
     }
   };
 
+  const resumeLiveStream = () => {
+    setIsLiveStreaming(true);
+  };
+
   const addHistoryLog = (res: PredictionResult) => {
     const newEntry = {
-      id: `SCAN-${Math.floor(100 + Math.random() * 900)}`,
+      id: `INSPECT-${Math.floor(100 + Math.random() * 900)}`,
       time: new Date().toLocaleTimeString(),
       status: res.status,
       disease: res.disease,
@@ -180,57 +157,48 @@ export function VisionAnalyticsPage() {
     setHistory((prev) => [newEntry, ...prev.slice(0, 7)]);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const url = URL.createObjectURL(file);
-      setImagePreview(url);
-      runInference(file);
-    }
-  };
-
   return (
     <div className="flex-1 w-full p-4 md:p-6 max-w-[1800px] mx-auto space-y-6 select-none font-sans text-white">
       {/* Header Banner */}
       <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-gradient-to-r from-[#040C16] via-[#08182b] to-[#040C16] border border-cyan-500/30 backdrop-blur-md shadow-[0_0_30px_rgba(0,240,255,0.15)]">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-cyan-500/10 border border-cyan-400/40 flex items-center justify-center text-cyan-400 font-orb text-xl shadow-[0_0_15px_rgba(0,240,255,0.3)]">
-            🔬
+            📹
           </div>
           <div>
             <h1 className="font-orb text-lg md:text-xl font-black text-white tracking-wide flex items-center gap-2">
-              <span>TEA LEAF PATHOLOGY & DAMAGE DETECTOR</span>
-              <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
-                7-DISEASE CLASS VISION ENGINE
+              <span>LIVE ROBOT CAMERA STREAM & PLANT INSPECTOR</span>
+              <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                LIVE 1080p STREAM
               </span>
             </h1>
             <p className="text-xs text-white/50 font-mono mt-0.5">
-              Anthracnose, Leaf Blight, Blight Disease, Wheel Spot, White Star, Tea Coal, & Mechanical Damage.
+              Real-time video feed from the onboard cable robot camera. Press INSPECT to freeze & analyze plant.
             </p>
           </div>
         </div>
 
-        {/* Ingest Action Buttons */}
+        {/* Primary Action Buttons */}
         <div className="flex items-center gap-3 font-mono text-xs">
-          <label className="cursor-pointer px-4 py-2 rounded-xl bg-cyan-500/15 border border-cyan-400/50 text-cyan-300 font-bold hover:bg-cyan-500/25 transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(0,240,255,0.2)]">
-            <Upload className="h-4 w-4" />
-            <span>UPLOAD TEA LEAF IMAGE</span>
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-          </label>
-
-          <button
-            onClick={() => runInference()}
-            disabled={loading}
-            className="px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-400/50 text-emerald-300 font-bold hover:bg-emerald-500/25 transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(0,168,107,0.2)]"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            <span>RUN PREDICTION INFERENCE</span>
-          </button>
+          {isLiveStreaming ? (
+            <button
+              onClick={inspectPlantLeaf}
+              disabled={loading}
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/30 via-amber-500/20 to-amber-500/30 border-2 border-amber-400 text-amber-200 font-orb font-black hover:bg-amber-500/40 transition-all flex items-center gap-2 shadow-[0_0_25px_rgba(255,191,0,0.4)] animate-pulse"
+            >
+              <PauseCircle className="h-5 w-5 text-amber-300" />
+              <span>STOP & INSPECT PLANT LEAF</span>
+            </button>
+          ) : (
+            <button
+              onClick={resumeLiveStream}
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500/30 via-cyan-500/20 to-cyan-500/30 border-2 border-cyan-400 text-cyan-200 font-orb font-black hover:bg-cyan-500/40 transition-all flex items-center gap-2 shadow-[0_0_25px_rgba(0,240,255,0.4)]"
+            >
+              <PlayCircle className="h-5 w-5 text-cyan-300" />
+              <span>RESUME LIVE CAMERA STREAM</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -243,39 +211,61 @@ export function VisionAnalyticsPage() {
             <div className="flex items-center justify-between font-orb text-xs font-bold text-cyan-400 pb-2 border-b border-white/10">
               <span className="flex items-center gap-2">
                 <Scan className="h-4 w-4 text-cyan-400" />
-                SIDE-BY-SIDE INGESTION & OPENCV DETECTION OVERLAY
+                LIVE STREAM VS FROZEN INSPECTION DETECTION OVERLAY
               </span>
-              <span className="font-mono text-[10px] text-emerald-400">
-                {prediction.status}
+              <span className="font-mono text-[10px] text-emerald-400 flex items-center gap-1">
+                {isLiveStreaming ? (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    STREAMING LIVE
+                  </>
+                ) : (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-amber-400" />
+                    INSPECTION FROZEN
+                  </>
+                )}
               </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Viewport 1: Original Ingested Image */}
+              {/* Viewport 1: Live MJPEG Video Feed */}
               <div className="space-y-2">
-                <div className="text-[11px] font-mono text-white/50 flex items-center gap-1.5">
-                  <ImageIcon className="h-3.5 w-3.5 text-cyan-400" />
-                  <span>ORIGINAL INPUT FRAME</span>
+                <div className="text-[11px] font-mono text-white/50 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Camera className="h-3.5 w-3.5 text-cyan-400" />
+                    LIVE ROBOT CAMERA STREAM
+                  </span>
+                  <span className="text-[9px] text-cyan-400 font-bold">1080p @ 60 FPS</span>
                 </div>
                 <div className="relative aspect-video rounded-xl bg-black border border-white/10 overflow-hidden flex items-center justify-center">
                   <img
-                    src={imagePreview}
-                    alt="Original Leaf"
+                    src="http://localhost:8000/video_feed"
+                    onError={(e) => {
+                      // Fallback image if backend server is not running
+                      (e.target as HTMLImageElement).src =
+                        "https://images.unsplash.com/photo-1576092768241-dec231879fc3?q=80&w=1000&auto=format&fit=crop";
+                    }}
+                    alt="Live Robot Feed"
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/80 text-[9px] font-mono text-white/60">
-                    RAW RGB
+                  <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/80 text-[9px] font-mono text-emerald-400 font-bold border border-emerald-500/30 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    LIVE FEED
                   </div>
                 </div>
               </div>
 
-              {/* Viewport 2: OpenCV Processed Frame / Base64 Annotated Image */}
+              {/* Viewport 2: Frozen Inspection & OpenCV Bounding Box Overlay */}
               <div className="space-y-2">
-                <div className="text-[11px] font-mono text-cyan-400 flex items-center gap-1.5 font-bold">
-                  <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
-                  <span>OPENCV DETECTION OVERLAY</span>
+                <div className="text-[11px] font-mono text-amber-400 flex items-center justify-between font-bold">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                    INSPECTED PLANT DIAGNOSIS
+                  </span>
+                  <span className="text-[9px] text-amber-300">OPENCV OVERLAY</span>
                 </div>
-                <div className="relative aspect-video rounded-xl bg-black border-2 border-cyan-500/40 overflow-hidden flex items-center justify-center shadow-[0_0_20px_rgba(0,240,255,0.2)]">
+                <div className="relative aspect-video rounded-xl bg-black border-2 border-amber-500/40 overflow-hidden flex items-center justify-center shadow-[0_0_20px_rgba(255,191,0,0.2)]">
                   {prediction.annotated_image ? (
                     <img
                       src={prediction.annotated_image}
@@ -285,11 +275,11 @@ export function VisionAnalyticsPage() {
                   ) : (
                     <div className="relative w-full h-full">
                       <img
-                        src={imagePreview}
+                        src="https://images.unsplash.com/photo-1576092768241-dec231879fc3?q=80&w=1000&auto=format&fit=crop"
                         alt="Leaf Overlay"
                         className="w-full h-full object-cover opacity-80"
                       />
-                      {/* Bounding Box Visualizer Overlay */}
+                      {/* Bounding Box Overlay */}
                       <div
                         className="absolute border-2 border-red-500 rounded bg-red-500/20 shadow-[0_0_20px_rgba(255,60,60,0.6)] flex items-start p-1"
                         style={{
@@ -306,7 +296,7 @@ export function VisionAnalyticsPage() {
                     </div>
                   )}
 
-                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/80 text-[9px] font-mono text-cyan-400 font-bold border border-cyan-500/30">
+                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/80 text-[9px] font-mono text-amber-400 font-bold border border-amber-500/30">
                     {prediction.engine_used || "OpenCV Multi-Spectrum"}
                   </div>
                 </div>
@@ -348,11 +338,15 @@ export function VisionAnalyticsPage() {
             <div className="flex items-center justify-between font-orb text-xs font-bold text-white border-b border-white/10 pb-3">
               <span className="flex items-center gap-2">
                 <Cpu className="h-4 w-4 text-emerald-400" />
-                VISION DIAGNOSTIC METRICS
+                INSPECTED PLANT METRICS
               </span>
-              <span className="font-mono text-[10px] text-cyan-400">
-                FASTAPI REAL-TIME
-              </span>
+              <button
+                onClick={inspectPlantLeaf}
+                disabled={loading}
+                className="font-mono text-[10px] text-cyan-400 underline font-bold"
+              >
+                RE-INSPECT NOW
+              </button>
             </div>
 
             {/* Health Status Badge */}
@@ -428,7 +422,7 @@ export function VisionAnalyticsPage() {
             <div className="flex items-center justify-between font-orb text-xs font-bold text-white border-b border-white/10 pb-2">
               <span className="flex items-center gap-2">
                 <FileCheck className="h-4 w-4 text-cyan-400" />
-                RECENT VISION INSPECTION LOGS
+                RECENT MANUAL PLANT INSPECTIONS
               </span>
               <span className="font-mono text-[10px] text-white/40">
                 PAST {history.length} SCANS

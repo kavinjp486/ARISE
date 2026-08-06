@@ -1,16 +1,44 @@
 """
-Prediction Route Endpoints
+Prediction & Live Camera Stream Route Endpoints
 
-Provides REST API endpoints for vision detection & ML inference.
-Supports uploaded image files (multipart/form-data), base64 encoded frame streams, or camera sample frames.
+Provides REST API endpoints for live camera video streaming (/video_feed),
+on-demand plant inspection triggers (/inspect), and vision detection inference (/predict).
 """
 
 from fastapi import APIRouter, File, UploadFile, Body
+from fastapi.responses import StreamingResponse
 from typing import Optional, Dict, Any
 from backend.models.schemas import VisionDetectionResponse, PredictRequest
 from backend.services.prediction_service import PredictionService
 
 router = APIRouter()
+
+
+@router.get(
+    "/video_feed",
+    summary="Live Robot Camera Video Stream (MJPEG)",
+)
+async def video_feed():
+    """
+    Streams live 1080p camera video feed from the onboard cable robot camera.
+    """
+    return StreamingResponse(
+        PredictionService.generate_mjpeg_stream(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+    )
+
+
+@router.post(
+    "/inspect",
+    response_model=VisionDetectionResponse,
+    summary="Trigger Manual Plant Inspection on Current Camera Frame",
+)
+async def inspect_plant():
+    """
+    Called when the robot is manually stopped over a plant.
+    Captures current camera frame, freezes view, and runs 7-disease vision detection.
+    """
+    return PredictionService.process_sample_frame()
 
 
 @router.get(
@@ -20,7 +48,7 @@ router = APIRouter()
 )
 async def get_prediction():
     """
-    Executes tea leaf disease detection on current camera frame or synthetic pipeline sample.
+    Executes tea leaf disease detection on current live camera frame.
     """
     return PredictionService.process_sample_frame()
 
@@ -38,17 +66,12 @@ async def post_prediction(
     Accepts either:
     1. Uploaded image file (multipart/form-data)
     2. Base64 frame input payload (JSON)
-    
-    Returns structured vision diagnosis, chlorosis yellow percentage, confidence, and bounding box coordinates.
     """
-    # Option 1: File Upload
     if file is not None:
         image_bytes = await file.read()
         return PredictionService.process_image_bytes(image_bytes)
 
-    # Option 2: JSON Payload with base64 image frame
     if request is not None and request.image_base64:
         return PredictionService.process_base64_frame(request.image_base64)
 
-    # Option 3: Fallback sample execution if no input frame provided
     return PredictionService.process_sample_frame()
