@@ -119,7 +119,9 @@ class PredictionService:
         try:
             nparr = np.frombuffer(image_bytes, np.uint8)
             frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            return TeaLeafDetector.detect_frame(frame)
+            res = TeaLeafDetector.detect_frame(frame)
+            cls.latest_prediction = res
+            return res
         except Exception as e:
             return {
                 "status": "NO_LEAF_DETECTED",

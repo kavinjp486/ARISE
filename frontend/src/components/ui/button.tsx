@@ -1,44 +1,48 @@
-import * as React from "react";
-import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "@/lib/utils";
+import React from "react";
 
-const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:pointer-events-none disabled:opacity-50",
-  {
-    variants: {
-      variant: {
-        default: "bg-accent text-accent-foreground hover:bg-accent/90",
-        outline:
-          "border border-border bg-muted/40 text-foreground hover:bg-muted hover:text-foreground",
-        destructive:
-          "bg-danger/15 text-danger border border-danger/30 hover:bg-danger/25",
-        ghost: "hover:bg-muted/60 text-muted-foreground hover:text-foreground",
-      },
-      size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-12 rounded-md px-6",
-        icon: "h-10 w-10",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-);
-
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {}
-
-export function Button({ className, variant, size, ...props }: ButtonProps) {
-  return (
-    <button
-      className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
-    />
-  );
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "primary" | "secondary" | "danger" | "ghost";
+  size?: "sm" | "md" | "lg";
+  icon?: React.ReactNode;
 }
 
-export { buttonVariants };
+export const Button: React.FC<ButtonProps> = ({
+  children,
+  variant = "secondary",
+  size = "md",
+  icon,
+  className = "",
+  disabled,
+  ...props
+}) => {
+  const baseStyles =
+    "inline-flex items-center justify-center font-medium transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#4ADE80] focus:ring-offset-2 focus:ring-offset-[#0E1514] disabled:opacity-40 disabled:cursor-not-allowed select-none";
+
+  const sizeStyles = {
+    sm: "h-7 px-2.5 text-xs rounded-[6px] gap-1.5",
+    md: "h-9 px-3.5 text-sm rounded-[10px] gap-2",
+    lg: "h-11 px-5 text-base rounded-[10px] gap-2.5",
+  };
+
+  const variantStyles = {
+    primary:
+      "bg-[#4ADE80] text-[#06210F] hover:bg-[#3ec470] active:bg-[#34aa61]",
+    secondary:
+      "bg-transparent border border-[#26332F] text-[#E6EDEB] hover:bg-[#1B2625] active:bg-[#141D1C]",
+    danger:
+      "bg-transparent border border-[#F5A524] text-[#F5A524] hover:bg-[#F5A524]/10 active:bg-[#F5A524]/20",
+    ghost:
+      "bg-transparent text-[#8FA19C] hover:text-[#E6EDEB] hover:bg-[#1B2625]",
+  };
+
+  return (
+    <button
+      className={`${baseStyles} ${sizeStyles[size]} ${variantStyles[variant]} ${className}`}
+      disabled={disabled}
+      {...props}
+    >
+      {icon && <span className="shrink-0">{icon}</span>}
+      {children}
+    </button>
+  );
+};

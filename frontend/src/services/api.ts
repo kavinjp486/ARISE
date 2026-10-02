@@ -49,6 +49,41 @@ export const ApiService = {
     );
   },
 
+  /** Send webcam frame base64 to FastAPI backend to run tea_leaf_detector.py */
+  async detectFrame(imageBase64: string): Promise<{
+    status: string;
+    disease: string;
+    yellow_percentage: number;
+    confidence: number;
+    recommendation: string;
+    bounding_box: { x: number; y: number; width: number; height: number };
+    frame_width?: number;
+    frame_height?: number;
+    engine_used?: string;
+  }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/predict`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image_base64: imageBase64 }),
+      });
+      if (!response.ok) {
+        throw new Error(`Detection HTTP error: ${response.status}`);
+      }
+      return await response.json();
+    } catch (err) {
+      return {
+        status: "NO_LEAF_DETECTED",
+        disease: "No leaf detected — hold a green leaf in front of camera",
+        yellow_percentage: 0,
+        confidence: 0,
+        recommendation: "Ensure camera feed is clear and leaf is well-lit.",
+        bounding_box: { x: 0, y: 0, width: 0, height: 0 },
+        engine_used: "tea_leaf_detector.py",
+      };
+    }
+  },
+
   /** Fetch live activity telemetry logs */
   async getLogs(): Promise<ActivityLogEntry[]> {
     return fetchWithFallback<ActivityLogEntry[]>(

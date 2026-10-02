@@ -72,7 +72,7 @@ export const PLACEHOLDER_ACTIVITY_LOG: ActivityLogEntry[] = [
   {
     id: "1",
     timestamp: "21:45:02",
-    message: "Autonomous harvest cycle resumed on sector B.",
+    message: "Autonomous harvest cycle resumed.",
     level: "success",
   },
   {

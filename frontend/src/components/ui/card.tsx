@@ -1,60 +1,53 @@
-import * as React from "react";
-import { cn } from "@/lib/utils";
+import React from "react";
 
-export function Card({
-  className,
+export interface CardProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "title"> {
+  title?: React.ReactNode;
+  subtitle?: React.ReactNode;
+  headerAction?: React.ReactNode;
+  className?: string;
+  bodyClassName?: string;
+  noPadding?: boolean;
+}
+
+export const Card: React.FC<CardProps> = ({
+  title,
+  subtitle,
+  headerAction,
+  children,
+  className = "",
+  bodyClassName = "",
+  noPadding = false,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+}) => {
+  const hasHeader = Boolean(title || headerAction);
+
   return (
     <div
-      className={cn(
-        "rounded-xl border border-border bg-card text-card-foreground shadow-lg shadow-black/20",
-        className
+      className={`bg-[#141D1C] border border-[#26332F] rounded-[14px] overflow-hidden flex flex-col ${className}`}
+      {...props}
+    >
+      {hasHeader && (
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#26332F] bg-[#141D1C]">
+          <div className="flex items-baseline gap-2.5">
+            {typeof title === "string" ? (
+              <h2 className="text-base font-semibold text-[#E6EDEB] tracking-tight">
+                {title}
+              </h2>
+            ) : (
+              title
+            )}
+            {subtitle && (
+              <span className="text-xs text-[#8FA19C]">{subtitle}</span>
+            )}
+          </div>
+          {headerAction && (
+            <div className="flex items-center gap-2">{headerAction}</div>
+          )}
+        </div>
       )}
-      {...props}
-    />
+      <div className={`flex-1 ${noPadding ? "" : "p-5"} ${bodyClassName}`}>
+        {children}
+      </div>
+    </div>
   );
-}
-
-export function CardHeader({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn("flex flex-col gap-1.5 border-b border-border/60 px-5 py-4", className)}
-      {...props}
-    />
-  );
-}
-
-export function CardTitle({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLHeadingElement>) {
-  return (
-    <h3
-      className={cn("text-sm font-semibold tracking-wide uppercase text-foreground", className)}
-      {...props}
-    />
-  );
-}
-
-export function CardDescription({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLParagraphElement>) {
-  return (
-    <p
-      className={cn("text-xs text-muted-foreground", className)}
-      {...props}
-    />
-  );
-}
-
-export function CardContent({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("p-5", className)} {...props} />;
-}
+};

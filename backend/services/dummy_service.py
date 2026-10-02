@@ -45,7 +45,7 @@ class DummyService:
             ActivityLogEntry(
                 id="1",
                 timestamp=now_str,
-                message="Autonomous harvest cycle active on Sector B cable line.",
+                message="Autonomous harvest cycle active on canopy cable line.",
                 level="success"
             ),
             ActivityLogEntry(

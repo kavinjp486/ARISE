@@ -1,0 +1,20 @@
+:root {
+  /* Base + neutral surfaces */
+  --bg:           #0E1514;  /* page */
+  --surface-1:    #141D1C;  /* cards */
+  --surface-2:    #1B2625;  /* raised / hover / inputs */
+  --border:       #26332F;  /* 1px dividers */
+  --text:         #E6EDEB;  /* primary text */
+  --text-muted:   #8FA19C;  /* secondary text, labels */
+
+  /* Brand accents */
+  --accent:       #4ADE80;  /* Tea Green */
+  --accent-soft:  rgba(74, 222, 128, 0.12); /* tinted backgrounds */
+  --alert:        #F5A524;  /* Amber */
+  --alert-soft:   rgba(245, 165, 36, 0.12);
+
+  /* Shape */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
